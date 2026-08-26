@@ -18,17 +18,118 @@ from coding_agent.threads import ThreadStore
 from coding_agent.tools import tree_snapshot
 
 st.set_page_config(
-    page_title="Coding Agent",
+    page_title="KETI Coding Agent",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Cursor-like: soft light workbench, minimal chrome
-st.markdown(
-    """
+
+def _inject_theme(theme: str) -> None:
+    """Light = previous soft workbench. Dark = full dark with readable contrast."""
+    if theme == "Dark":
+        css = """
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
-
+  :root {
+    --ca-bg: #0d1117;
+    --ca-panel: #161b22;
+    --ca-sidebar: #010409;
+    --ca-border: #30363d;
+    --ca-accent: #3fb950;
+    --ca-text: #e6edf3;
+    --ca-muted: #9da7b3;
+    --ca-tool: #21262d;
+    --ca-chip-bg: #12261c;
+    --ca-chip-border: #238636;
+    --ca-input-bg: #0d1117;
+    --ca-hover: #21262d;
+  }
+  html, body, [class*="css"] {
+    font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  }
+  .stApp {
+    background:
+      radial-gradient(900px 420px at 0% 0%, #12261c 0%, transparent 55%),
+      radial-gradient(800px 360px at 100% 0%, #161b22 0%, transparent 50%),
+      var(--ca-bg);
+  }
+  .stApp, .stApp p, .stApp span, .stApp label, .stApp li,
+  .stMarkdown, .stMarkdown p, .stCaption, [data-testid="stMarkdownContainer"],
+  [data-testid="stMarkdownContainer"] h1,
+  [data-testid="stMarkdownContainer"] h2,
+  [data-testid="stMarkdownContainer"] h3,
+  [data-testid="stMarkdownContainer"] strong,
+  [data-testid="stWidgetLabel"] p {
+    color: var(--ca-text) !important;
+  }
+  [data-testid="stMarkdownContainer"] a { color: var(--ca-accent) !important; }
+  pre, code, .stCode { color: var(--ca-text) !important; }
+  div[data-baseweb="tab"] button { color: var(--ca-muted) !important; }
+  div[data-baseweb="tab"] button[aria-selected="true"] { color: var(--ca-text) !important; }
+  [data-testid="stExpander"] summary { color: var(--ca-text) !important; }
+  [data-testid="stSidebar"] {
+    background: var(--ca-sidebar) !important;
+    border-right: 1px solid var(--ca-border);
+  }
+  [data-testid="stSidebar"] * { color: var(--ca-text) !important; }
+  [data-testid="stHeader"] { background: transparent; }
+  [data-testid="stChatMessage"] {
+    background: var(--ca-panel) !important;
+    border: 1px solid var(--ca-border);
+    border-radius: 8px;
+  }
+  .ca-brand {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--ca-accent) !important;
+    margin: 0 0 0.15rem;
+  }
+  .ca-sub { color: var(--ca-muted) !important; font-size: 0.78rem; margin-bottom: 0.85rem; }
+  .ca-section {
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--ca-muted) !important; margin: 0.9rem 0 0.4rem;
+  }
+  .ca-tool {
+    background: var(--ca-tool); border: 1px solid var(--ca-border);
+    border-left: 3px solid var(--ca-accent); border-radius: 6px;
+    padding: 0.45rem 0.65rem; margin: 0.3rem 0;
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.78rem;
+    color: var(--ca-text) !important;
+  }
+  .ca-tool .name { color: var(--ca-accent) !important; font-weight: 500; }
+  .ca-tool pre { white-space: pre-wrap; margin: 0.35rem 0 0; color: var(--ca-muted) !important; font-size: 0.74rem; }
+  .ca-file-chip {
+    display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.78rem; color: var(--ca-accent) !important;
+    background: var(--ca-chip-bg); border: 1px solid var(--ca-chip-border);
+    padding: 0.12rem 0.45rem; border-radius: 4px; margin-bottom: 0.5rem;
+  }
+  .ca-empty { color: var(--ca-muted) !important; font-size: 0.9rem; padding: 1.2rem 0.2rem; }
+  div[data-testid="stChatInput"] textarea {
+    background: var(--ca-input-bg) !important;
+    border: 1px solid var(--ca-border) !important;
+    color: var(--ca-text) !important;
+  }
+  [data-testid="stSidebar"] .stButton > button {
+    justify-content: flex-start; text-align: left;
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.78rem; font-weight: 400;
+    border: 1px solid transparent; background: transparent; color: var(--ca-text) !important;
+    padding: 0.2rem 0.4rem; min-height: 1.7rem;
+  }
+  [data-testid="stSidebar"] .stButton > button:hover {
+    background: var(--ca-hover); border-color: var(--ca-border);
+  }
+  .stSelectbox label, .stTextInput label, .stToggle label { color: var(--ca-muted) !important; }
+  .block-container { padding-top: 1.2rem; padding-bottom: 1.5rem; }
+</style>
+"""
+    else:
+        # Previous Light workbench (unchanged look)
+        css = """
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
   :root {
     --ca-bg: #f4f5f7;
     --ca-panel: #ffffff;
@@ -40,7 +141,6 @@ st.markdown(
     --ca-tool: #f6f8fa;
     --ca-code-bg: #f6f8fa;
   }
-
   html, body, [class*="css"] {
     font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
   }
@@ -56,7 +156,6 @@ st.markdown(
   }
   [data-testid="stSidebar"] * { color: var(--ca-text); }
   [data-testid="stHeader"] { background: transparent; }
-
   .ca-brand {
     font-family: "IBM Plex Mono", ui-monospace, monospace;
     font-size: 0.95rem;
@@ -65,80 +164,47 @@ st.markdown(
     color: var(--ca-accent);
     margin: 0 0 0.15rem;
   }
-  .ca-sub {
-    color: var(--ca-muted);
-    font-size: 0.78rem;
-    margin-bottom: 0.85rem;
-  }
+  .ca-sub { color: var(--ca-muted); font-size: 0.78rem; margin-bottom: 0.85rem; }
   .ca-section {
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--ca-muted);
-    margin: 0.9rem 0 0.4rem;
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--ca-muted); margin: 0.9rem 0 0.4rem;
   }
   .ca-tool {
-    background: var(--ca-tool);
-    border: 1px solid var(--ca-border);
-    border-left: 3px solid var(--ca-accent);
-    border-radius: 6px;
-    padding: 0.45rem 0.65rem;
-    margin: 0.3rem 0;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 0.78rem;
+    background: var(--ca-tool); border: 1px solid var(--ca-border);
+    border-left: 3px solid var(--ca-accent); border-radius: 6px;
+    padding: 0.45rem 0.65rem; margin: 0.3rem 0;
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.78rem;
     color: var(--ca-text);
   }
   .ca-tool .name { color: var(--ca-accent); font-weight: 500; }
   .ca-tool pre {
-    white-space: pre-wrap;
-    margin: 0.35rem 0 0;
-    color: var(--ca-muted);
-    font-size: 0.74rem;
+    white-space: pre-wrap; margin: 0.35rem 0 0; color: var(--ca-muted); font-size: 0.74rem;
   }
   .ca-file-chip {
-    display: inline-block;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 0.78rem;
-    color: var(--ca-accent);
-    background: #e7f4f1;
-    border: 1px solid #c7e6df;
-    padding: 0.12rem 0.45rem;
-    border-radius: 4px;
-    margin-bottom: 0.5rem;
+    display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.78rem; color: var(--ca-accent);
+    background: #e7f4f1; border: 1px solid #c7e6df;
+    padding: 0.12rem 0.45rem; border-radius: 4px; margin-bottom: 0.5rem;
   }
-  .ca-empty {
-    color: var(--ca-muted);
-    font-size: 0.9rem;
-    padding: 1.2rem 0.2rem;
-  }
+  .ca-empty { color: var(--ca-muted); font-size: 0.9rem; padding: 1.2rem 0.2rem; }
   div[data-testid="stChatInput"] textarea {
     background: #fff !important;
     border: 1px solid var(--ca-border) !important;
     color: var(--ca-text) !important;
   }
-  /* Tighten sidebar buttons */
   [data-testid="stSidebar"] .stButton > button {
-    justify-content: flex-start;
-    text-align: left;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 0.78rem;
-    font-weight: 400;
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--ca-text);
-    padding: 0.2rem 0.4rem;
-    min-height: 1.7rem;
+    justify-content: flex-start; text-align: left;
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.78rem; font-weight: 400;
+    border: 1px solid transparent; background: transparent; color: var(--ca-text);
+    padding: 0.2rem 0.4rem; min-height: 1.7rem;
   }
   [data-testid="stSidebar"] .stButton > button:hover {
-    background: #e2e6eb;
-    border-color: var(--ca-border);
+    background: #e2e6eb; border-color: var(--ca-border);
   }
   .block-container { padding-top: 1.2rem; padding-bottom: 1.5rem; }
 </style>
-""",
-    unsafe_allow_html=True,
-)
+"""
+    st.markdown(css, unsafe_allow_html=True)
 
 
 def _store() -> ThreadStore:
@@ -181,6 +247,8 @@ def _init_state() -> None:
         st.session_state.pending_interrupt = None
     if "show_trace" not in st.session_state:
         st.session_state.show_trace = False
+    if "theme" not in st.session_state:
+        st.session_state.theme = "Light"
 
 
 def _persist_messages() -> None:
@@ -323,7 +391,7 @@ def _consume_events(events, status_box, live, assistant_chunks: list[str]) -> No
 
 
 def _sidebar(workspace: Path) -> None:
-    st.markdown('<div class="ca-brand">CODING AGENT</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ca-brand">KETI Coding Agent</div>', unsafe_allow_html=True)
     st.markdown(
         f'<div class="ca-sub">deepagents-code {escape(deepagents_version())}</div>',
         unsafe_allow_html=True,
@@ -359,6 +427,12 @@ def _sidebar(workspace: Path) -> None:
             _switch_thread(remaining[0]["id"])
 
     with st.expander("Settings", expanded=False):
+        st.radio(
+            "Theme",
+            ["Light", "Dark"],
+            horizontal=True,
+            key="theme",
+        )
         models = list_models() or [MODEL_NAME]
         default_idx = (
             models.index(st.session_state.model) if st.session_state.model in models else 0
@@ -408,7 +482,6 @@ def _sidebar(workspace: Path) -> None:
         if picked != "—" and picked != st.session_state.selected_file:
             st.session_state.selected_file = picked
             st.rerun()
-        # Compact clickable list (source only)
         for entry in entries[:40]:
             label = f"› {entry}" if entry == st.session_state.selected_file else entry
             if st.button(label, key=f"file-{entry}", use_container_width=True):
@@ -515,10 +588,19 @@ def _editor_panel(workspace: Path) -> None:
             text = str(art["content"])
             break
 
-    lang = Path(selected).suffix.lstrip(".") or None
-    st.code(text if text else "(empty)", language=lang)
+    suffix = Path(selected).suffix.lower()
+    body = text if text else "(empty)"
 
-    # Diff / verify tucked away
+    if suffix == ".md":
+        preview_tab, source_tab = st.tabs(["Preview", "Source"])
+        with preview_tab:
+            st.markdown(body)
+        with source_tab:
+            st.code(body, language="markdown")
+    else:
+        lang = suffix.lstrip(".") or None
+        st.code(body, language=lang)
+
     diff = None
     action = None
     for ch in reversed(st.session_state.file_changes):
@@ -569,6 +651,7 @@ def _trace_panel() -> None:
 
 def main() -> None:
     _init_state()
+    _inject_theme(st.session_state.theme)
     workspace = resolve_workspace(st.session_state.workspace)
     st.session_state.workspace = str(workspace)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
