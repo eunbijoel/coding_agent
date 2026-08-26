@@ -4,4 +4,6 @@ __pycache__/
 .streamlit/secrets.toml
 workspace/**
 !workspace/README.md
+data/
 .pytest_cache/
+.deepagents/

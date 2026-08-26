@@ -1,4 +1,4 @@
-"""Normalized event vocabulary (inspired by tasking-agent / Agent Harness Console)."""
+"""Normalized event vocabulary (tasking-agent style)."""
 
 from __future__ import annotations
 
@@ -13,6 +13,9 @@ EventType = Literal[
     "tool_call",
     "tool_result",
     "file_view",
+    "file_change",
+    "interrupt",
+    "test_result",
     "trace",
     "error",
     "done",
@@ -71,10 +74,29 @@ def tool_result(
     )
 
 
-def file_view(path: str, content: str, *, language: str = "") -> AgentEvent:
+def file_view(path: str, content: str, *, language: str = "", before: str | None = None) -> AgentEvent:
+    data: dict[str, Any] = {"path": path, "content": content, "language": language}
+    if before is not None:
+        data["before"] = before
+        data["action"] = "edit" if before != content else "view"
+    return AgentEvent("file_view", data)
+
+
+def file_change(path: str, diff: str, *, action: str = "modify") -> AgentEvent:
+    return AgentEvent("file_change", {"path": path, "diff": diff, "action": action})
+
+
+def interrupt(action_requests: list[dict[str, Any]], *, thread_id: str) -> AgentEvent:
     return AgentEvent(
-        "file_view",
-        {"path": path, "content": content, "language": language},
+        "interrupt",
+        {"action_requests": action_requests, "thread_id": thread_id},
+    )
+
+
+def test_result(summary: str, *, ok: bool, details: str = "") -> AgentEvent:
+    return AgentEvent(
+        "test_result",
+        {"summary": summary, "ok": ok, "details": details},
     )
 
 
@@ -86,5 +108,5 @@ def error(message: str) -> AgentEvent:
     return AgentEvent("error", {"message": message})
 
 
-def done() -> AgentEvent:
-    return AgentEvent("done", {})
+def done(*, interrupted: bool = False) -> AgentEvent:
+    return AgentEvent("done", {"interrupted": interrupted})
