@@ -352,8 +352,23 @@ def dispatch(workspace: Path, name: str, arguments: dict[str, Any]) -> ToolOutco
         return ToolOutcome(f"{name} failed: {exc}", ok=False)
 
 
+IGNORE_DIR_NAMES = {
+    "__pycache__",
+    ".git",
+    ".venv",
+    "venv",
+    "node_modules",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".deepagents",
+    "data",
+}
+IGNORE_SUFFIXES = {".pyc", ".pyo", ".pyd", ".so", ".dll", ".egg"}
+
+
 def tree_snapshot(workspace: Path, max_depth: int = 3, max_entries: int = 120) -> list[str]:
-    """Flat relative paths for the sidebar file tree."""
+    """Flat relative paths for the sidebar file tree (source files only)."""
     out: list[str] = []
     root = workspace.resolve()
 
@@ -365,7 +380,9 @@ def tree_snapshot(workspace: Path, max_depth: int = 3, max_entries: int = 120) -
         except OSError:
             return
         for child in children:
-            if child.name.startswith("."):
+            if child.name.startswith(".") or child.name in IGNORE_DIR_NAMES:
+                continue
+            if child.is_file() and child.suffix.lower() in IGNORE_SUFFIXES:
                 continue
             rel = str(child.relative_to(root))
             if child.is_dir():

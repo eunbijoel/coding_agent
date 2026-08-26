@@ -19,71 +19,122 @@ from coding_agent.tools import tree_snapshot
 
 st.set_page_config(
     page_title="Coding Agent",
-    page_icon="💻",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
+# Cursor-like: soft light workbench, minimal chrome
 st.markdown(
     """
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
   :root {
-    --ca-bg: #0f1419;
-    --ca-panel: #151b23;
-    --ca-border: #2a3340;
-    --ca-accent: #3d9a6a;
-    --ca-text: #e6edf3;
-    --ca-muted: #8b9bab;
-    --ca-tool: #1c2430;
+    --ca-bg: #f4f5f7;
+    --ca-panel: #ffffff;
+    --ca-sidebar: #eceef1;
+    --ca-border: #dde1e6;
+    --ca-accent: #0f7b6c;
+    --ca-text: #1f2328;
+    --ca-muted: #656d76;
+    --ca-tool: #f6f8fa;
+    --ca-code-bg: #f6f8fa;
   }
-  .stApp { background: linear-gradient(160deg, #0f1419 0%, #121820 45%, #0d1a16 100%); }
+
+  html, body, [class*="css"] {
+    font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  }
+  .stApp {
+    background:
+      radial-gradient(1200px 500px at 10% -10%, #e8f3ef 0%, transparent 55%),
+      radial-gradient(900px 400px at 100% 0%, #eef1f6 0%, transparent 50%),
+      var(--ca-bg);
+  }
   [data-testid="stSidebar"] {
-    background: var(--ca-panel);
+    background: var(--ca-sidebar);
     border-right: 1px solid var(--ca-border);
   }
-  h1, h2, h3, p, label, .stMarkdown { color: var(--ca-text); }
+  [data-testid="stSidebar"] * { color: var(--ca-text); }
+  [data-testid="stHeader"] { background: transparent; }
+
   .ca-brand {
-    font-family: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 1.35rem;
-    letter-spacing: 0.04em;
-    color: var(--ca-accent);
-    margin-bottom: 0.15rem;
-  }
-  .ca-sub { color: var(--ca-muted); font-size: 0.9rem; margin-bottom: 0.8rem; }
-  .ca-panel-title {
     font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--ca-accent);
+    margin: 0 0 0.15rem;
+  }
+  .ca-sub {
     color: var(--ca-muted);
-    margin: 0.2rem 0 0.5rem;
+    font-size: 0.78rem;
+    margin-bottom: 0.85rem;
+  }
+  .ca-section {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ca-muted);
+    margin: 0.9rem 0 0.4rem;
   }
   .ca-tool {
     background: var(--ca-tool);
     border: 1px solid var(--ca-border);
     border-left: 3px solid var(--ca-accent);
-    border-radius: 4px;
-    padding: 0.55rem 0.7rem;
-    margin: 0.35rem 0;
-    font-family: ui-monospace, monospace;
-    font-size: 0.8rem;
+    border-radius: 6px;
+    padding: 0.45rem 0.65rem;
+    margin: 0.3rem 0;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    color: var(--ca-text);
   }
-  .ca-tool .name { color: #7dcea0; }
+  .ca-tool .name { color: var(--ca-accent); font-weight: 500; }
+  .ca-tool pre {
+    white-space: pre-wrap;
+    margin: 0.35rem 0 0;
+    color: var(--ca-muted);
+    font-size: 0.74rem;
+  }
   .ca-file-chip {
     display: inline-block;
-    background: #1a2330;
-    border: 1px solid var(--ca-border);
-    padding: 0.15rem 0.45rem;
-    border-radius: 3px;
-    font-family: ui-monospace, monospace;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
     font-size: 0.78rem;
-    color: #9ecbff;
-    margin: 0.15rem 0.2rem 0.15rem 0;
+    color: var(--ca-accent);
+    background: #e7f4f1;
+    border: 1px solid #c7e6df;
+    padding: 0.12rem 0.45rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+  }
+  .ca-empty {
+    color: var(--ca-muted);
+    font-size: 0.9rem;
+    padding: 1.2rem 0.2rem;
   }
   div[data-testid="stChatInput"] textarea {
-    background: #121820 !important;
+    background: #fff !important;
     border: 1px solid var(--ca-border) !important;
+    color: var(--ca-text) !important;
   }
+  /* Tighten sidebar buttons */
+  [data-testid="stSidebar"] .stButton > button {
+    justify-content: flex-start;
+    text-align: left;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    font-weight: 400;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--ca-text);
+    padding: 0.2rem 0.4rem;
+    min-height: 1.7rem;
+  }
+  [data-testid="stSidebar"] .stButton > button:hover {
+    background: #e2e6eb;
+    border-color: var(--ca-border);
+  }
+  .block-container { padding-top: 1.2rem; padding-bottom: 1.5rem; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -128,6 +179,8 @@ def _init_state() -> None:
         st.session_state.auto_approve = False
     if "pending_interrupt" not in st.session_state:
         st.session_state.pending_interrupt = None
+    if "show_trace" not in st.session_state:
+        st.session_state.show_trace = False
 
 
 def _persist_messages() -> None:
@@ -173,16 +226,22 @@ def _read_selected(workspace: Path) -> str:
 
 
 def _render_tool_html(name: str, arguments: dict, result: str | None = None, ok: bool = True) -> str:
-    args_preview = escape(str(arguments)[:400])
-    body = f'<div class="ca-tool"><span class="name">{escape(name)}</span> {args_preview}'
+    short_args = escape(str(arguments)[:180])
+    body = f'<div class="ca-tool"><span class="name">{escape(name)}</span> {short_args}'
     if result is not None:
         flag = "ok" if ok else "err"
-        body += (
-            f"<pre style='white-space:pre-wrap;margin:0.4rem 0 0;color:#c5d0db'>"
-            f"({flag}) {escape(result[:1200])}</pre>"
-        )
+        body += f"<pre>({flag}) {escape(result[:500])}</pre>"
     body += "</div>"
     return body
+
+
+def _should_keep_trace(step: str | None) -> bool:
+    s = (step or "").lower()
+    if s in {"middleware", "start", "complete"}:
+        return False
+    if "middleware" in s:
+        return False
+    return True
 
 
 def _consume_events(events, status_box, live, assistant_chunks: list[str]) -> None:
@@ -192,17 +251,16 @@ def _consume_events(events, status_box, live, assistant_chunks: list[str]) -> No
         if et == "status":
             status_box.update(label=data.get("message") or "…", state="running")
         elif et == "thinking":
-            st.session_state.traces.append(
-                {"step": "thinking", "detail": data.get("text", "")[:2000]}
-            )
+            pass  # keep chat clean; details stay in optional Trace
         elif et == "trace":
-            st.session_state.traces.append(
-                {
-                    "step": data.get("step"),
-                    "detail": data.get("detail", ""),
-                    **{k: v for k, v in data.items() if k not in {"step", "detail"}},
-                }
-            )
+            if _should_keep_trace(data.get("step")):
+                st.session_state.traces.append(
+                    {
+                        "step": data.get("step"),
+                        "detail": data.get("detail", ""),
+                        **{k: v for k, v in data.items() if k not in {"step", "detail"}},
+                    }
+                )
         elif et == "assistant_delta":
             assistant_chunks.append(data.get("text") or "")
             live.markdown("\n\n".join(assistant_chunks))
@@ -223,16 +281,13 @@ def _consume_events(events, status_box, live, assistant_chunks: list[str]) -> No
                     "ok": True,
                 }
             )
-            st.markdown(
-                _render_tool_html(data.get("name") or "tool", data.get("arguments") or {}),
-                unsafe_allow_html=True,
-            )
         elif et == "tool_result":
             for m in reversed(st.session_state.messages):
                 if m.get("role") == "tool" and m.get("content") is None:
                     m["content"] = data.get("content")
                     m["ok"] = data.get("ok", True)
                     break
+            # Live compact line (avoid double giant blocks)
             st.markdown(
                 _render_tool_html(
                     data.get("name") or "tool",
@@ -246,30 +301,18 @@ def _consume_events(events, status_box, live, assistant_chunks: list[str]) -> No
             st.session_state.file_views.append(data)
             if data.get("path"):
                 st.session_state.selected_file = data["path"]
-                st.markdown(
-                    f'<span class="ca-file-chip">{escape(data["path"])}</span>',
-                    unsafe_allow_html=True,
-                )
         elif et == "file_change":
             st.session_state.file_changes.append(data)
             if data.get("path"):
                 st.session_state.selected_file = data["path"]
         elif et == "test_result":
             st.session_state.test_results.append(data)
-            if data.get("ok"):
-                st.success(data.get("summary") or "tests ok")
-            else:
-                st.warning(data.get("summary") or "tests failed")
-            if data.get("details"):
-                with st.expander("Verification details"):
-                    st.code(data["details"])
         elif et == "interrupt":
             st.session_state.pending_interrupt = data
-            st.warning("도구 실행 승인이 필요합니다.")
         elif et == "error":
             st.error(data.get("message") or "error")
             st.session_state.messages.append(
-                {"role": "assistant", "content": f"⚠️ {data.get('message')}"}
+                {"role": "assistant", "content": f"Error: {data.get('message')}"}
             )
         elif et == "done":
             interrupted = bool(data.get("interrupted"))
@@ -282,22 +325,23 @@ def _consume_events(events, status_box, live, assistant_chunks: list[str]) -> No
 def _sidebar(workspace: Path) -> None:
     st.markdown('<div class="ca-brand">CODING AGENT</div>', unsafe_allow_html=True)
     st.markdown(
-        f'<div class="ca-sub">deepagents-code {escape(deepagents_version())} · Ollama</div>',
+        f'<div class="ca-sub">deepagents-code {escape(deepagents_version())}</div>',
         unsafe_allow_html=True,
     )
 
     store = _store()
-    st.markdown('<div class="ca-panel-title">Threads</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ca-section">Thread</div>', unsafe_allow_html=True)
     threads = store.list_threads()
-    labels = {t["id"]: f"{t.get('title') or t['id'][:8]}" for t in threads}
+    labels = {t["id"]: (t.get("title") or t["id"][:8])[:40] for t in threads}
     ids = [t["id"] for t in threads]
     if ids:
         idx = ids.index(st.session_state.thread_id) if st.session_state.thread_id in ids else 0
         chosen = st.selectbox(
-            "Resume thread",
+            "Thread",
             ids,
             index=idx,
             format_func=lambda i: labels.get(i, i),
+            label_visibility="collapsed",
         )
         if chosen != st.session_state.thread_id:
             _switch_thread(chosen)
@@ -314,64 +358,76 @@ def _sidebar(workspace: Path) -> None:
                 remaining = [store.create(title="Thread 1", model=st.session_state.model)]
             _switch_thread(remaining[0]["id"])
 
-    models = list_models() or [MODEL_NAME]
-    default_idx = models.index(st.session_state.model) if st.session_state.model in models else 0
-    st.session_state.model = st.selectbox("Model", models, index=default_idx)
-    st.session_state.auto_approve = st.toggle(
-        "Auto-approve tools",
-        value=st.session_state.auto_approve,
-        help="Off = deepagents-code HITL for execute / write_file / edit_file / delete",
-    )
-
-    ws_in = st.text_input("Workspace", value=st.session_state.workspace)
-    if ws_in.strip() and ws_in.strip() != st.session_state.workspace:
-        st.session_state.workspace = str(resolve_workspace(ws_in.strip()))
-        st.cache_resource.clear()
-        st.rerun()
-
-    ok = ollama_available()
-    st.caption(
-        f"Ollama: {'connected' if ok else 'offline'} · "
-        f"{st.session_state.model} · thread {st.session_state.thread_id[:8]}"
-    )
-
-    st.markdown('<div class="ca-panel-title">Files</div>', unsafe_allow_html=True)
-    entries = tree_snapshot(workspace)
-    if not entries:
-        st.caption("(empty workspace)")
-    for entry in entries:
-        if entry.endswith("/"):
-            st.markdown(f"`{entry}`")
-            continue
-        if st.button(entry, key=f"file-{entry}", use_container_width=True):
-            st.session_state.selected_file = entry
+    with st.expander("Settings", expanded=False):
+        models = list_models() or [MODEL_NAME]
+        default_idx = (
+            models.index(st.session_state.model) if st.session_state.model in models else 0
+        )
+        st.session_state.model = st.selectbox("Model", models, index=default_idx)
+        st.session_state.auto_approve = st.toggle(
+            "Auto-approve tools",
+            value=st.session_state.auto_approve,
+            help="Off = approve execute / write / edit / delete",
+        )
+        st.session_state.show_trace = st.toggle(
+            "Show activity trace",
+            value=st.session_state.show_trace,
+        )
+        ws_in = st.text_input("Workspace", value=st.session_state.workspace)
+        if ws_in.strip() and ws_in.strip() != st.session_state.workspace:
+            st.session_state.workspace = str(resolve_workspace(ws_in.strip()))
+            st.cache_resource.clear()
+            st.rerun()
+        ok = ollama_available()
+        st.caption(
+            f"{'●' if ok else '○'} {st.session_state.model} · {st.session_state.thread_id[:8]}"
+        )
+        if st.button("Clear chat", use_container_width=True):
+            st.session_state.messages = []
+            st.session_state.traces = []
+            st.session_state.file_views = []
+            st.session_state.file_changes = []
+            st.session_state.test_results = []
+            st.session_state.pending_interrupt = None
+            _persist_messages()
             st.rerun()
 
-    st.divider()
-    if st.button("Clear UI messages", use_container_width=True):
-        st.session_state.messages = []
-        st.session_state.traces = []
-        st.session_state.file_views = []
-        st.session_state.file_changes = []
-        st.session_state.test_results = []
-        st.session_state.pending_interrupt = None
-        _persist_messages()
-        st.rerun()
-
-    st.caption("Runtime: deepagents-code create_cli_agent (Bridge).")
+    st.markdown('<div class="ca-section">Files</div>', unsafe_allow_html=True)
+    entries = [e for e in tree_snapshot(workspace) if not e.endswith("/")]
+    if not entries:
+        st.caption("Empty workspace")
+    else:
+        options = ["—"] + entries
+        current = st.session_state.selected_file if st.session_state.selected_file in entries else "—"
+        picked = st.selectbox(
+            "Open file",
+            options,
+            index=options.index(current) if current in options else 0,
+            label_visibility="collapsed",
+        )
+        if picked != "—" and picked != st.session_state.selected_file:
+            st.session_state.selected_file = picked
+            st.rerun()
+        # Compact clickable list (source only)
+        for entry in entries[:40]:
+            label = f"› {entry}" if entry == st.session_state.selected_file else entry
+            if st.button(label, key=f"file-{entry}", use_container_width=True):
+                st.session_state.selected_file = entry
+                st.rerun()
 
 
 def _example_prompts() -> None:
-    st.markdown('<div class="ca-panel-title">Example prompts</div>', unsafe_allow_html=True)
+    if st.session_state.messages:
+        return
     examples = [
-        "이 깃에서처럼 deep agent editor (deepagents-code) 스타일로 prompt 입력창 생성해줘",
-        "workspace에 hello.py를 만들고 실행해줘",
-        "현재 파일 트리를 보고 README.md 초안을 작성해줘",
+        ("Prompt editor UI 만들기", "deepagents-code 스타일 prompt 입력창 HTML을 workspace에 만들어줘"),
+        ("hello.py 만들고 실행", "workspace에 hello.py를 만들고 실행해줘"),
+        ("README 초안", "현재 파일 트리를 보고 README.md 초안을 작성해줘"),
     ]
     cols = st.columns(len(examples))
-    for i, (col, text) in enumerate(zip(cols, examples)):
+    for i, (col, (label, text)) in enumerate(zip(cols, examples)):
         with col:
-            if st.button(text[:42] + ("…" if len(text) > 42 else ""), key=f"ex-{i}"):
+            if st.button(label, key=f"ex-{i}", use_container_width=True):
                 st.session_state._pending_prompt = text
 
 
@@ -379,30 +435,24 @@ def _approval_panel(bridge: DeepAgentsBridge) -> None:
     pending = st.session_state.pending_interrupt
     if not pending:
         return
-    st.markdown('<div class="ca-panel-title">Approval required</div>', unsafe_allow_html=True)
+    st.info("도구 실행 승인이 필요합니다.")
     actions = pending.get("action_requests") or []
-    for i, ar in enumerate(actions):
+    for ar in actions:
         st.markdown(
             _render_tool_html(ar.get("name") or "tool", ar.get("args") or {}),
             unsafe_allow_html=True,
         )
-        if ar.get("description"):
-            st.caption(ar["description"])
-
     a1, a2 = st.columns(2)
     with a1:
-        if st.button("Approve all", type="primary", use_container_width=True):
+        if st.button("Approve", type="primary", use_container_width=True):
             decisions = [{"type": "approve"} for _ in actions] or [{"type": "approve"}]
             st.session_state.pending_interrupt = None
             assistant_chunks: list[str] = []
             with st.chat_message("assistant"):
-                status_box = st.status("Resuming…", expanded=True)
+                status_box = st.status("Resuming…", expanded=False)
                 live = st.empty()
                 _consume_events(
-                    bridge.resume(
-                        thread_id=st.session_state.thread_id,
-                        decisions=decisions,
-                    ),
+                    bridge.resume(thread_id=st.session_state.thread_id, decisions=decisions),
                     status_box,
                     live,
                     assistant_chunks,
@@ -410,27 +460,111 @@ def _approval_panel(bridge: DeepAgentsBridge) -> None:
             _persist_messages()
             st.rerun()
     with a2:
-        if st.button("Reject all", use_container_width=True):
+        if st.button("Reject", use_container_width=True):
             decisions = [
-                {"type": "reject", "message": "Rejected by user in Coding Agent UI"}
-                for _ in actions
+                {"type": "reject", "message": "Rejected by user"} for _ in actions
             ] or [{"type": "reject", "message": "Rejected by user"}]
             st.session_state.pending_interrupt = None
-            assistant_chunks = []
+            assistant_chunks: list[str] = []
             with st.chat_message("assistant"):
-                status_box = st.status("Rejecting…", expanded=True)
+                status_box = st.status("Rejecting…", expanded=False)
                 live = st.empty()
                 _consume_events(
-                    bridge.resume(
-                        thread_id=st.session_state.thread_id,
-                        decisions=decisions,
-                    ),
+                    bridge.resume(thread_id=st.session_state.thread_id, decisions=decisions),
                     status_box,
                     live,
                     assistant_chunks,
                 )
             _persist_messages()
             st.rerun()
+
+
+def _render_chat_history() -> None:
+    for msg in st.session_state.messages:
+        role = msg.get("role", "assistant")
+        if role == "tool":
+            with st.chat_message("assistant"):
+                st.markdown(
+                    _render_tool_html(
+                        msg.get("name", "tool"),
+                        msg.get("arguments") or {},
+                        msg.get("content"),
+                        msg.get("ok", True),
+                    ),
+                    unsafe_allow_html=True,
+                )
+        else:
+            with st.chat_message(role):
+                st.markdown(msg.get("content") or "")
+
+
+def _editor_panel(workspace: Path) -> None:
+    selected = st.session_state.selected_file
+    if not selected:
+        st.markdown(
+            '<div class="ca-empty">Select a file, or let the agent edit one.</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    st.markdown(f'<span class="ca-file-chip">{escape(selected)}</span>', unsafe_allow_html=True)
+
+    text = _read_selected(workspace)
+    for art in reversed(st.session_state.file_views):
+        if art.get("path") == selected and art.get("content") is not None:
+            text = str(art["content"])
+            break
+
+    lang = Path(selected).suffix.lstrip(".") or None
+    st.code(text if text else "(empty)", language=lang)
+
+    # Diff / verify tucked away
+    diff = None
+    action = None
+    for ch in reversed(st.session_state.file_changes):
+        if ch.get("path") == selected and ch.get("diff"):
+            diff = ch["diff"]
+            action = ch.get("action")
+            break
+    if diff:
+        with st.expander(f"Diff ({action or 'change'})", expanded=False):
+            st.code(diff, language="diff")
+
+    if st.session_state.file_changes:
+        changed = []
+        seen = set()
+        for ch in reversed(st.session_state.file_changes):
+            p = ch.get("path")
+            if p and p not in seen:
+                seen.add(p)
+                changed.append(p)
+        if len(changed) > 1:
+            pick = st.selectbox("Changed files", changed, key="changed-picker")
+            if pick and pick != selected:
+                st.session_state.selected_file = pick
+                st.rerun()
+
+    if st.session_state.test_results:
+        latest = st.session_state.test_results[-1]
+        with st.expander(
+            ("Verification ok" if latest.get("ok") else "Verification failed"),
+            expanded=False,
+        ):
+            st.code(latest.get("details") or latest.get("summary") or "")
+
+
+def _trace_panel() -> None:
+    if not st.session_state.show_trace:
+        return
+    with st.expander("Activity", expanded=False):
+        useful = [t for t in st.session_state.traces if _should_keep_trace(t.get("step"))]
+        if not useful:
+            st.caption("No tool activity yet.")
+            return
+        for tr in reversed(useful[-20:]):
+            step = tr.get("step") or "event"
+            detail = tr.get("detail") or ""
+            st.markdown(f"**{step}** — {detail}" if detail else f"**{step}**")
 
 
 def main() -> None:
@@ -448,36 +582,22 @@ def main() -> None:
     with st.sidebar:
         _sidebar(workspace)
 
-    chat_col, code_col, trace_col = st.columns([1.15, 1.15, 0.9], gap="medium")
+    # Cursor-like: Chat + Editor only (trace optional)
+    chat_col, code_col = st.columns([1.2, 1], gap="large")
 
     with chat_col:
-        st.markdown('<div class="ca-panel-title">Chat · Prompt</div>', unsafe_allow_html=True)
         _example_prompts()
         _approval_panel(bridge)
-
-        for msg in st.session_state.messages:
-            role = msg.get("role", "assistant")
-            with st.chat_message(role if role in {"user", "assistant"} else "assistant"):
-                if role == "tool":
-                    st.markdown(
-                        _render_tool_html(
-                            msg.get("name", "tool"),
-                            msg.get("arguments") or {},
-                            msg.get("content"),
-                            msg.get("ok", True),
-                        ),
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    st.markdown(msg.get("content") or "")
+        _render_chat_history()
+        _trace_panel()
 
         blocked = st.session_state.pending_interrupt is not None
         pending = st.session_state.pop("_pending_prompt", None)
         prompt = None
         if not blocked:
-            prompt = st.chat_input("Ask the coding agent… (deepagents-code runtime)")
+            prompt = st.chat_input("Message the coding agent…")
         else:
-            st.info("승인 또는 거절 후 계속할 수 있습니다.")
+            st.caption("Approve or reject to continue.")
         user_text = pending or prompt
 
         if user_text and not blocked:
@@ -487,7 +607,7 @@ def main() -> None:
 
             assistant_chunks: list[str] = []
             with st.chat_message("assistant"):
-                status_box = st.status("Running deepagents-code…", expanded=True)
+                status_box = st.status("Working…", expanded=False)
                 live = st.empty()
                 _consume_events(
                     bridge.run(user_text, thread_id=st.session_state.thread_id),
@@ -499,56 +619,7 @@ def main() -> None:
             st.rerun()
 
     with code_col:
-        st.markdown('<div class="ca-panel-title">Code · Artifacts</div>', unsafe_allow_html=True)
-        selected = st.session_state.selected_file
-        if selected:
-            st.markdown(
-                f'<span class="ca-file-chip">{escape(selected)}</span>',
-                unsafe_allow_html=True,
-            )
-            text = _read_selected(workspace)
-            for art in reversed(st.session_state.file_views):
-                if art.get("path") == selected and art.get("content") is not None:
-                    text = str(art["content"])
-                    break
-            for ch in reversed(st.session_state.file_changes):
-                if ch.get("path") == selected and ch.get("diff"):
-                    st.caption(f"Diff ({ch.get('action')})")
-                    st.code(ch["diff"], language="diff")
-                    break
-            lang = Path(selected).suffix.lstrip(".") or None
-            st.code(text if text else "(empty or unreadable)", language=lang)
-        else:
-            st.info("파일이 선택되거나 에이전트가 파일을 바꾸면 여기에 표시됩니다.")
-
-        if st.session_state.file_changes:
-            st.markdown('<div class="ca-panel-title">Changed files</div>', unsafe_allow_html=True)
-            for ch in reversed(st.session_state.file_changes[-12:]):
-                path = ch.get("path") or "?"
-                action = ch.get("action") or "modify"
-                if st.button(f"{action}: {path}", key=f"chg-{path}-{action}-{id(ch)}"):
-                    st.session_state.selected_file = path
-                    st.rerun()
-
-        if st.session_state.test_results:
-            st.markdown('<div class="ca-panel-title">Verification</div>', unsafe_allow_html=True)
-            latest = st.session_state.test_results[-1]
-            st.write(("✅ " if latest.get("ok") else "❌ ") + (latest.get("summary") or ""))
-            if latest.get("details"):
-                st.code(latest["details"])
-
-    with trace_col:
-        st.markdown('<div class="ca-panel-title">Tracing</div>', unsafe_allow_html=True)
-        if not st.session_state.traces:
-            st.caption("deepagents-code tool / LLM steps appear here.")
-        for i, tr in enumerate(reversed(st.session_state.traces[-40:]), 1):
-            step = tr.get("step") or "event"
-            detail = tr.get("detail") or ""
-            with st.expander(f"{step}", expanded=(i <= 3)):
-                st.write(detail)
-                extra = {k: v for k, v in tr.items() if k not in {"step", "detail"}}
-                if extra:
-                    st.json(extra)
+        _editor_panel(workspace)
 
 
 if __name__ == "__main__":
