@@ -27,56 +27,97 @@ st.set_page_config(
 def _inject_theme(theme: str) -> None:
     """Light = previous soft workbench. Dark = full dark with readable contrast."""
     if theme == "Dark":
+        # Original cohesive dark workbench (full page dark + readable text)
         css = """
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
   :root {
-    --ca-bg: #0d1117;
-    --ca-panel: #161b22;
-    --ca-sidebar: #010409;
-    --ca-border: #30363d;
-    --ca-accent: #3fb950;
+    --ca-bg: #0f1419;
+    --ca-panel: #151b23;
+    --ca-sidebar: #121820;
+    --ca-border: #2a3340;
+    --ca-accent: #3d9a6a;
     --ca-text: #e6edf3;
-    --ca-muted: #9da7b3;
-    --ca-tool: #21262d;
-    --ca-chip-bg: #12261c;
-    --ca-chip-border: #238636;
-    --ca-input-bg: #0d1117;
-    --ca-hover: #21262d;
+    --ca-muted: #8b9bab;
+    --ca-tool: #1c2430;
+    --ca-chip-bg: #1a2330;
+    --ca-chip-border: #2a3340;
+    --ca-input-bg: #121820;
+    --ca-hover: #1c2430;
   }
   html, body, [class*="css"] {
     font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
   }
-  .stApp {
-    background:
-      radial-gradient(900px 420px at 0% 0%, #12261c 0%, transparent 55%),
-      radial-gradient(800px 360px at 100% 0%, #161b22 0%, transparent 50%),
-      var(--ca-bg);
+  .stApp,
+  [data-testid="stAppViewContainer"],
+  [data-testid="stMain"],
+  section.main,
+  .main,
+  .block-container {
+    background: linear-gradient(160deg, #0f1419 0%, #121820 45%, #0d1a16 100%) !important;
+    color: var(--ca-text) !important;
   }
-  .stApp, .stApp p, .stApp span, .stApp label, .stApp li,
-  .stMarkdown, .stMarkdown p, .stCaption, [data-testid="stMarkdownContainer"],
+  .stApp p, .stApp span, .stApp label, .stApp li,
+  .stMarkdown, .stMarkdown p, .stCaption,
+  [data-testid="stMarkdownContainer"],
   [data-testid="stMarkdownContainer"] h1,
   [data-testid="stMarkdownContainer"] h2,
   [data-testid="stMarkdownContainer"] h3,
   [data-testid="stMarkdownContainer"] strong,
-  [data-testid="stWidgetLabel"] p {
+  [data-testid="stWidgetLabel"] p,
+  [data-testid="stChatMessageContent"] {
     color: var(--ca-text) !important;
   }
-  [data-testid="stMarkdownContainer"] a { color: var(--ca-accent) !important; }
-  pre, code, .stCode { color: var(--ca-text) !important; }
-  div[data-baseweb="tab"] button { color: var(--ca-muted) !important; }
-  div[data-baseweb="tab"] button[aria-selected="true"] { color: var(--ca-text) !important; }
-  [data-testid="stExpander"] summary { color: var(--ca-text) !important; }
+  [data-testid="stMarkdownContainer"] a { color: #7dcea0 !important; }
   [data-testid="stSidebar"] {
     background: var(--ca-sidebar) !important;
     border-right: 1px solid var(--ca-border);
   }
   [data-testid="stSidebar"] * { color: var(--ca-text) !important; }
-  [data-testid="stHeader"] { background: transparent; }
+  [data-testid="stHeader"] { background: transparent !important; }
   [data-testid="stChatMessage"] {
     background: var(--ca-panel) !important;
     border: 1px solid var(--ca-border);
     border-radius: 8px;
+  }
+  /* Select / input: dark surface + light text (no dark-on-dark) */
+  [data-baseweb="select"] > div,
+  [data-baseweb="select"] > div > div,
+  [data-baseweb="input"] input,
+  [data-baseweb="base-input"],
+  .stTextInput input {
+    background-color: #1c2430 !important;
+    color: #e6edf3 !important;
+    border-color: var(--ca-border) !important;
+  }
+  [data-baseweb="popover"] li, [data-baseweb="menu"] li {
+    background-color: #151b23 !important;
+    color: #e6edf3 !important;
+  }
+  .stButton > button {
+    background-color: #1c2430 !important;
+    color: #e6edf3 !important;
+    border: 1px solid var(--ca-border) !important;
+  }
+  .stButton > button:hover {
+    background-color: #243040 !important;
+    border-color: var(--ca-accent) !important;
+  }
+  .stButton > button[kind="primary"] {
+    background-color: #238636 !important;
+    border-color: #238636 !important;
+    color: #fff !important;
+  }
+  div[data-testid="stChatInput"] {
+    background: transparent !important;
+  }
+  div[data-testid="stChatInput"] textarea {
+    background: var(--ca-input-bg) !important;
+    border: 1px solid var(--ca-border) !important;
+    color: var(--ca-text) !important;
+  }
+  div[data-testid="stChatInput"] textarea::placeholder {
+    color: var(--ca-muted) !important;
   }
   .ca-brand {
     font-family: "IBM Plex Mono", ui-monospace, monospace;
@@ -98,29 +139,27 @@ def _inject_theme(theme: str) -> None:
     font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.78rem;
     color: var(--ca-text) !important;
   }
-  .ca-tool .name { color: var(--ca-accent) !important; font-weight: 500; }
+  .ca-tool .name { color: #7dcea0 !important; font-weight: 500; }
   .ca-tool pre { white-space: pre-wrap; margin: 0.35rem 0 0; color: var(--ca-muted) !important; font-size: 0.74rem; }
   .ca-file-chip {
     display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 0.78rem; color: var(--ca-accent) !important;
+    font-size: 0.78rem; color: #9ecbff !important;
     background: var(--ca-chip-bg); border: 1px solid var(--ca-chip-border);
     padding: 0.12rem 0.45rem; border-radius: 4px; margin-bottom: 0.5rem;
   }
   .ca-empty { color: var(--ca-muted) !important; font-size: 0.9rem; padding: 1.2rem 0.2rem; }
-  div[data-testid="stChatInput"] textarea {
-    background: var(--ca-input-bg) !important;
-    border: 1px solid var(--ca-border) !important;
-    color: var(--ca-text) !important;
-  }
   [data-testid="stSidebar"] .stButton > button {
     justify-content: flex-start; text-align: left;
     font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.78rem; font-weight: 400;
-    border: 1px solid transparent; background: transparent; color: var(--ca-text) !important;
-    padding: 0.2rem 0.4rem; min-height: 1.7rem;
+    border: 1px solid transparent !important; background: transparent !important;
+    color: var(--ca-text) !important; padding: 0.2rem 0.4rem; min-height: 1.7rem;
   }
   [data-testid="stSidebar"] .stButton > button:hover {
-    background: var(--ca-hover); border-color: var(--ca-border);
+    background: var(--ca-hover) !important; border-color: var(--ca-border) !important;
   }
+  div[data-baseweb="tab"] button { color: var(--ca-muted) !important; }
+  div[data-baseweb="tab"] button[aria-selected="true"] { color: var(--ca-text) !important; }
+  [data-testid="stExpander"] summary { color: var(--ca-text) !important; }
   .stSelectbox label, .stTextInput label, .stToggle label { color: var(--ca-muted) !important; }
   .block-container { padding-top: 1.2rem; padding-bottom: 1.5rem; }
 </style>

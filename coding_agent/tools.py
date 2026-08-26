@@ -382,9 +382,13 @@ def tree_snapshot(workspace: Path, max_depth: int = 3, max_entries: int = 120) -
         for child in children:
             if child.name.startswith(".") or child.name in IGNORE_DIR_NAMES:
                 continue
+            if "__pycache__" in child.parts:
+                continue
             if child.is_file() and child.suffix.lower() in IGNORE_SUFFIXES:
                 continue
             rel = str(child.relative_to(root))
+            if "__pycache__" in rel or rel.endswith(tuple(IGNORE_SUFFIXES)):
+                continue
             if child.is_dir():
                 out.append(rel + "/")
                 walk(child, depth + 1)
