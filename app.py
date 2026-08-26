@@ -136,7 +136,7 @@ def _render_tool_html(name: str, arguments: dict, result: str | None = None, ok:
 def _sidebar(workspace: Path) -> None:
     st.markdown('<div class="ca-brand">CODING AGENT</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="ca-sub">Cursor-style · Ollama · visible code & tools</div>',
+        '<div class="ca-sub">deepagents-code · Ollama · visible code & tools</div>',
         unsafe_allow_html=True,
     )
 
@@ -173,7 +173,7 @@ def _sidebar(workspace: Path) -> None:
         st.session_state.file_views = []
         st.rerun()
 
-    st.caption("Inspired by deepagents-code / tasking-agent harness UI.")
+    st.caption("Runtime: deepagents-code · UI inspired by tasking-agent.")
 
 
 def _example_prompts() -> None:
