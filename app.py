@@ -162,6 +162,29 @@ def _inject_theme(theme: str) -> None:
   [data-testid="stExpander"] summary { color: var(--ca-text) !important; }
   .stSelectbox label, .stTextInput label, .stToggle label { color: var(--ca-muted) !important; }
   .block-container { padding-top: 1.2rem; padding-bottom: 1.5rem; }
+  .ca-keti-nav + div[data-testid="stButton"] > button {
+    background: transparent !important;
+    border: none !important;
+    color: var(--ca-accent) !important;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-align: left;
+    padding: 0 0 0.15rem 0 !important;
+    min-height: auto !important;
+    box-shadow: none !important;
+  }
+  .ca-keti-nav + div[data-testid="stButton"] > button:hover {
+    background: transparent !important;
+    color: #7dcea0 !important;
+    border: none !important;
+  }
+  .ca-new-chat-hint {
+    color: var(--ca-muted) !important;
+    font-size: 1.05rem;
+    padding: 2rem 0 1rem;
+  }
 </style>
 """
     else:
@@ -241,6 +264,29 @@ def _inject_theme(theme: str) -> None:
     background: #e2e6eb; border-color: var(--ca-border);
   }
   .block-container { padding-top: 1.2rem; padding-bottom: 1.5rem; }
+  .ca-keti-nav + div[data-testid="stButton"] > button {
+    background: transparent !important;
+    border: none !important;
+    color: var(--ca-accent) !important;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-align: left;
+    padding: 0 0 0.15rem 0 !important;
+    min-height: auto !important;
+    box-shadow: none !important;
+  }
+  .ca-keti-nav + div[data-testid="stButton"] > button:hover {
+    background: transparent !important;
+    color: #7dcea0 !important;
+    border: none !important;
+  }
+  .ca-new-chat-hint {
+    color: var(--ca-muted) !important;
+    font-size: 1.05rem;
+    padding: 2rem 0 1rem;
+  }
 </style>
 """
     st.markdown(css, unsafe_allow_html=True)
@@ -256,16 +302,12 @@ def _bridge(workspace: str, model: str, auto_approve: bool) -> DeepAgentsBridge:
 
 
 def _init_state() -> None:
-    store = _store()
+    if "new_chat_mode" not in st.session_state:
+        st.session_state.new_chat_mode = True
     if "thread_id" not in st.session_state:
-        threads = store.list_threads()
-        if threads:
-            st.session_state.thread_id = threads[0]["id"]
-        else:
-            row = store.create(title="Thread 1", model=MODEL_NAME)
-            st.session_state.thread_id = row["id"]
+        st.session_state.thread_id = None
     if "messages" not in st.session_state:
-        st.session_state.messages = store.load_messages(st.session_state.thread_id)
+        st.session_state.messages = []
     if "traces" not in st.session_state:
         st.session_state.traces = []
     if "file_views" not in st.session_state:
@@ -291,6 +333,8 @@ def _init_state() -> None:
 
 
 def _persist_messages() -> None:
+    if not st.session_state.thread_id:
+        return
     _store().save_messages(st.session_state.thread_id, st.session_state.messages)
     title = None
     for m in st.session_state.messages:
@@ -304,7 +348,21 @@ def _persist_messages() -> None:
     )
 
 
+def _go_new_chat() -> None:
+    st.session_state.new_chat_mode = True
+    st.session_state.thread_id = None
+    st.session_state.messages = []
+    st.session_state.traces = []
+    st.session_state.file_views = []
+    st.session_state.file_changes = []
+    st.session_state.test_results = []
+    st.session_state.pending_interrupt = None
+    st.session_state.selected_file = None
+    st.rerun()
+
+
 def _switch_thread(thread_id: str) -> None:
+    st.session_state.new_chat_mode = False
     st.session_state.thread_id = thread_id
     st.session_state.messages = _store().load_messages(thread_id)
     st.session_state.traces = []
@@ -430,7 +488,9 @@ def _consume_events(events, status_box, live, assistant_chunks: list[str]) -> No
 
 
 def _sidebar(workspace: Path) -> None:
-    st.markdown('<div class="ca-brand">KETI Coding Agent</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ca-keti-nav">', unsafe_allow_html=True)
+    if st.button("KETI Coding Agent", key="keti_home", use_container_width=True):
+        _go_new_chat()
     st.markdown(
         f'<div class="ca-sub">deepagents-code {escape(deepagents_version())}</div>',
         unsafe_allow_html=True,
@@ -440,30 +500,30 @@ def _sidebar(workspace: Path) -> None:
     st.markdown('<div class="ca-section">Thread</div>', unsafe_allow_html=True)
     threads = store.list_threads()
     labels = {t["id"]: (t.get("title") or t["id"][:8])[:40] for t in threads}
-    ids = [t["id"] for t in threads]
-    if ids:
-        idx = ids.index(st.session_state.thread_id) if st.session_state.thread_id in ids else 0
-        chosen = st.selectbox(
-            "Thread",
-            ids,
-            index=idx,
-            format_func=lambda i: labels.get(i, i),
-            label_visibility="collapsed",
-        )
-        if chosen != st.session_state.thread_id:
-            _switch_thread(chosen)
+    ids = ["__new__"] + [t["id"] for t in threads]
+    labels["__new__"] = "New chat"
+    current = "__new__" if st.session_state.new_chat_mode else st.session_state.thread_id
+    if current not in ids:
+        current = "__new__"
+    chosen = st.selectbox(
+        "Thread",
+        ids,
+        index=ids.index(current),
+        format_func=lambda i: labels.get(i, i),
+        label_visibility="collapsed",
+    )
+    if chosen == "__new__" and not st.session_state.new_chat_mode:
+        _go_new_chat()
+    elif chosen != "__new__" and chosen != st.session_state.thread_id:
+        _switch_thread(chosen)
     c1, c2 = st.columns(2)
     with c1:
         if st.button("New", use_container_width=True):
-            row = store.create(title="New thread", model=st.session_state.model)
-            _switch_thread(row["id"])
+            _go_new_chat()
     with c2:
         if st.button("Delete", use_container_width=True) and st.session_state.thread_id:
             store.delete(st.session_state.thread_id)
-            remaining = store.list_threads()
-            if not remaining:
-                remaining = [store.create(title="Thread 1", model=st.session_state.model)]
-            _switch_thread(remaining[0]["id"])
+            _go_new_chat()
 
     with st.expander("Settings", expanded=False):
         st.radio(
@@ -492,18 +552,10 @@ def _sidebar(workspace: Path) -> None:
             st.cache_resource.clear()
             st.rerun()
         ok = ollama_available()
-        st.caption(
-            f"{'●' if ok else '○'} {st.session_state.model} · {st.session_state.thread_id[:8]}"
-        )
+        tid = st.session_state.thread_id[:8] if st.session_state.thread_id else "new"
+        st.caption(f"{'●' if ok else '○'} {st.session_state.model} · {tid}")
         if st.button("Clear chat", use_container_width=True):
-            st.session_state.messages = []
-            st.session_state.traces = []
-            st.session_state.file_views = []
-            st.session_state.file_changes = []
-            st.session_state.test_results = []
-            st.session_state.pending_interrupt = None
-            _persist_messages()
-            st.rerun()
+            _go_new_chat()
 
     st.markdown('<div class="ca-section">Files</div>', unsafe_allow_html=True)
     entries = [e for e in tree_snapshot(workspace) if not e.endswith("/")]
@@ -526,21 +578,6 @@ def _sidebar(workspace: Path) -> None:
             if st.button(label, key=f"file-{entry}", use_container_width=True):
                 st.session_state.selected_file = entry
                 st.rerun()
-
-
-def _example_prompts() -> None:
-    if st.session_state.messages:
-        return
-    examples = [
-        ("Prompt editor UI 만들기", "deepagents-code 스타일 prompt 입력창 HTML을 workspace에 만들어줘"),
-        ("hello.py 만들고 실행", "workspace에 hello.py를 만들고 실행해줘"),
-        ("README 초안", "현재 파일 트리를 보고 README.md 초안을 작성해줘"),
-    ]
-    cols = st.columns(len(examples))
-    for i, (col, (label, text)) in enumerate(zip(cols, examples)):
-        with col:
-            if st.button(label, key=f"ex-{i}", use_container_width=True):
-                st.session_state._pending_prompt = text
 
 
 def _approval_panel(bridge: DeepAgentsBridge) -> None:
@@ -708,21 +745,32 @@ def main() -> None:
     chat_col, code_col = st.columns([1.2, 1], gap="large")
 
     with chat_col:
-        _example_prompts()
+        if st.session_state.new_chat_mode and not st.session_state.messages:
+            st.markdown(
+                '<div class="ca-new-chat-hint">New chat</div>',
+                unsafe_allow_html=True,
+            )
         _approval_panel(bridge)
         _render_chat_history()
         _trace_panel()
 
         blocked = st.session_state.pending_interrupt is not None
-        pending = st.session_state.pop("_pending_prompt", None)
         prompt = None
         if not blocked:
             prompt = st.chat_input("Message the coding agent…")
         else:
             st.caption("Approve or reject to continue.")
-        user_text = pending or prompt
+        user_text = prompt
 
         if user_text and not blocked:
+            if st.session_state.new_chat_mode or not st.session_state.thread_id:
+                title = user_text.strip().splitlines()[0]
+                if len(title) > 48:
+                    title = title[:48] + "…"
+                row = _store().create(title=title, model=st.session_state.model)
+                st.session_state.thread_id = row["id"]
+                st.session_state.new_chat_mode = False
+
             st.session_state.messages.append({"role": "user", "content": user_text})
             with st.chat_message("user"):
                 st.markdown(user_text)
