@@ -119,13 +119,21 @@ def _inject_theme(theme: str) -> None:
   div[data-testid="stChatInput"] textarea::placeholder {
     color: var(--ca-muted) !important;
   }
-  .ca-brand {
+  .ca-brand,
+  .ca-brand-link,
+  .ca-brand-link:visited {
     font-family: "IBM Plex Mono", ui-monospace, monospace;
     font-size: 0.95rem;
     font-weight: 500;
     letter-spacing: 0.04em;
     color: var(--ca-accent) !important;
     margin: 0 0 0.15rem;
+    display: block;
+    text-decoration: none;
+  }
+  .ca-brand-link:hover {
+    color: #7dcea0 !important;
+    text-decoration: none;
   }
   .ca-sub { color: var(--ca-muted) !important; font-size: 0.78rem; margin-bottom: 0.85rem; }
   .ca-section {
@@ -162,24 +170,6 @@ def _inject_theme(theme: str) -> None:
   [data-testid="stExpander"] summary { color: var(--ca-text) !important; }
   .stSelectbox label, .stTextInput label, .stToggle label { color: var(--ca-muted) !important; }
   .block-container { padding-top: 1.2rem; padding-bottom: 1.5rem; }
-  .ca-keti-nav + div[data-testid="stButton"] > button {
-    background: transparent !important;
-    border: none !important;
-    color: var(--ca-accent) !important;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 0.95rem;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    text-align: left;
-    padding: 0 0 0.15rem 0 !important;
-    min-height: auto !important;
-    box-shadow: none !important;
-  }
-  .ca-keti-nav + div[data-testid="stButton"] > button:hover {
-    background: transparent !important;
-    color: #7dcea0 !important;
-    border: none !important;
-  }
   .ca-new-chat-hint {
     color: var(--ca-muted) !important;
     font-size: 1.05rem;
@@ -218,13 +208,21 @@ def _inject_theme(theme: str) -> None:
   }
   [data-testid="stSidebar"] * { color: var(--ca-text); }
   [data-testid="stHeader"] { background: transparent; }
-  .ca-brand {
+  .ca-brand,
+  .ca-brand-link,
+  .ca-brand-link:visited {
     font-family: "IBM Plex Mono", ui-monospace, monospace;
     font-size: 0.95rem;
     font-weight: 500;
     letter-spacing: 0.06em;
     color: var(--ca-accent);
     margin: 0 0 0.15rem;
+    display: block;
+    text-decoration: none;
+  }
+  .ca-brand-link:hover {
+    color: #0a5c50;
+    text-decoration: none;
   }
   .ca-sub { color: var(--ca-muted); font-size: 0.78rem; margin-bottom: 0.85rem; }
   .ca-section {
@@ -264,24 +262,6 @@ def _inject_theme(theme: str) -> None:
     background: #e2e6eb; border-color: var(--ca-border);
   }
   .block-container { padding-top: 1.2rem; padding-bottom: 1.5rem; }
-  .ca-keti-nav + div[data-testid="stButton"] > button {
-    background: transparent !important;
-    border: none !important;
-    color: var(--ca-accent) !important;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 0.95rem;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    text-align: left;
-    padding: 0 0 0.15rem 0 !important;
-    min-height: auto !important;
-    box-shadow: none !important;
-  }
-  .ca-keti-nav + div[data-testid="stButton"] > button:hover {
-    background: transparent !important;
-    color: #7dcea0 !important;
-    border: none !important;
-  }
   .ca-new-chat-hint {
     color: var(--ca-muted) !important;
     font-size: 1.05rem;
@@ -488,9 +468,13 @@ def _consume_events(events, status_box, live, assistant_chunks: list[str]) -> No
 
 
 def _sidebar(workspace: Path) -> None:
-    st.markdown('<div class="ca-keti-nav">', unsafe_allow_html=True)
-    if st.button("KETI Coding Agent", key="keti_home", use_container_width=True):
+    if st.query_params.get("keti_home"):
+        st.query_params.clear()
         _go_new_chat()
+    st.markdown(
+        '<a href="?keti_home=1" target="_self" class="ca-brand ca-brand-link">KETI Coding Agent</a>',
+        unsafe_allow_html=True,
+    )
     st.markdown(
         f'<div class="ca-sub">deepagents-code {escape(deepagents_version())}</div>',
         unsafe_allow_html=True,
