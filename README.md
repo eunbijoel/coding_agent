@@ -44,6 +44,8 @@ flowchart TB
 
 
 
+
+
 ## 실행
 
 ```bash
@@ -72,6 +74,20 @@ streamlit run app.py
 | `CODING_AGENT_WORKSPACE`  | `./workspace`            |
 | `CODING_AGENT_DATA`       | `./data`                 |
 | `CODING_AGENT_MAX_ROUNDS` | `12`                     |
+
+
+
+
+## Workbench (오른쪽 패널)
+
+
+| 탭            | 기능                                                                                    |
+| ------------ | ------------------------------------------------------------------------------------- |
+| **Code**     | 파일 선택 후 `st.text_area`로 편집 · Save(확인 단계) · Reload · 미저장 표시                            |
+| **Diff**     | 에이전트/사용자 변경 diff · Verification 결과                                                    |
+| **Terminal** | 사용자 직접 명령 실행 (`workspace/` 고정, 확인 체크, Stop/History). **deepagents** `execute`**와 별도** |
+| **Preview**  | `.html` 인라인 렌더 · `.py` Streamlit/Flask/FastAPI 프로세스 미리보기 (포트·SSH 안내)                  |
+| **Trace**    | deepagents-code 활동 로그 (middleware 노이즈 필터)                                             |
 
 
 ## 참고
