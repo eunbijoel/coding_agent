@@ -172,7 +172,7 @@ def _inject_theme(theme: str) -> None:
   div[data-baseweb="tab"] button[aria-selected="true"] { color: var(--ca-text) !important; }
   [data-testid="stExpander"] summary { color: var(--ca-text) !important; }
   .stSelectbox label, .stTextInput label, .stToggle label { color: var(--ca-muted) !important; }
-  .block-container { padding-top: 0.35rem !important; padding-bottom: 0.5rem !important; }
+  section.main .block-container { padding-top: 0.65rem !important; padding-bottom: 0.5rem !important; }
   .ca-new-chat-hint {
     color: var(--ca-muted) !important;
     font-size: 1.05rem;
@@ -187,8 +187,8 @@ def _inject_theme(theme: str) -> None:
     box-sizing: border-box !important;
   }
   section.main div[data-testid="stVerticalBlockBorderWrapper"] > div[data-testid="stVerticalBlock"] {
-    height: calc(100vh - 9.25rem) !important;
-    max-height: calc(100vh - 9.25rem) !important;
+    height: calc(100vh - 9.5rem) !important;
+    max-height: calc(100vh - 9.5rem) !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     box-sizing: border-box !important;
@@ -286,7 +286,7 @@ def _inject_theme(theme: str) -> None:
   [data-testid="stSidebar"] .stButton > button:hover {
     background: #e2e6eb; border-color: var(--ca-border);
   }
-  .block-container { padding-top: 0.35rem !important; padding-bottom: 0.5rem !important; }
+  section.main .block-container { padding-top: 0.65rem !important; padding-bottom: 0.5rem !important; }
   .ca-new-chat-hint {
     color: var(--ca-muted) !important;
     font-size: 1.05rem;
@@ -301,8 +301,8 @@ def _inject_theme(theme: str) -> None:
     box-sizing: border-box !important;
   }
   section.main div[data-testid="stVerticalBlockBorderWrapper"] > div[data-testid="stVerticalBlock"] {
-    height: calc(100vh - 9.25rem) !important;
-    max-height: calc(100vh - 9.25rem) !important;
+    height: calc(100vh - 9.5rem) !important;
+    max-height: calc(100vh - 9.5rem) !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     box-sizing: border-box !important;
