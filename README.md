@@ -8,20 +8,38 @@ Streamlit 코딩 워크벤치. **에이전트 엔진은 [deepagents-code](https:
 
 ```mermaid
 flowchart TB
-    UI["Streamlit UI · app.py<br/>events: assistant · tool_call · tool_result<br/>file_change · interrupt · test_result"]
-    Bridge["DeepAgentsBridge · bridge.py<br/>create_cli_agent()<br/>SqliteSaver thread 재개<br/>HITL approve/reject"]
-    Runtime["deepagents-code runtime"]
-    Model["Ollama gemma4:31b"]
-    Hands["Hands<br/>ls · read_file · write_file · edit_file · execute"]
-    WS["workspace/"]
-    Data["data/checkpoints.sqlite<br/>data/messages/"]
+    subgraph UI["① Streamlit UI · app.py"]
+        Chat["채팅 / 승인 UI"]
+        Editor["코드 패널"]
+        Sidebar["Thread · Files · Settings"]
+        ThreadStore["ThreadStore<br/>data/messages/*.json"]
+    end
+
+    subgraph Bridge["② DeepAgentsBridge · bridge.py (우리가 만든 어댑터)"]
+        Events["AgentEvent 정규화"]
+        Snap["workspace 스냅샷 / diff"]
+        Verify["py_compile + pytest"]
+        Map["LangGraph stream → UI 이벤트"]
+    end
+
+    subgraph DCode["③ deepagents-code · create_cli_agent()"]
+        Graph["LangGraph Pregel"]
+        MW["Middleware 스택<br/>HITL · filesystem · shell …"]
+        CP["SqliteSaver checkpointer"]
+    end
+
+    subgraph Runtime["④ deepagents + LangChain"]
+        Model["Ollama gemma4:31b"]
+        Hands["read/write/edit/execute …"]
+        WS["workspace/"]
+    end
 
     UI --> Bridge
-    Bridge --> Runtime
-    Bridge --> Data
-    Runtime --> Model
-    Runtime --> Hands
+    Bridge --> DCode
+    DCode --> Runtime
     Hands --> WS
+    CP --> Data["data/checkpoints.sqlite"]
+    ThreadStore --> Data
 ```
 
 
