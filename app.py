@@ -15,13 +15,16 @@ from coding_agent.config import DATA_DIR, MODEL_NAME, resolve_workspace
 from coding_agent.ollama_client import available as ollama_available
 from coding_agent.ollama_client import list_models
 from coding_agent.threads import ThreadStore
-from coding_agent.tools import tree_snapshot
+from coding_agent.tools import IGNORE_DIR_NAMES, IGNORE_SUFFIXES
 
 st.set_page_config(
     page_title="KETI Coding Agent",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# Enables per-panel scroll regions; CSS overrides to viewport height.
+PANEL_SCROLL_HEIGHT = 720
 
 
 def _inject_theme(theme: str) -> None:
@@ -169,12 +172,34 @@ def _inject_theme(theme: str) -> None:
   div[data-baseweb="tab"] button[aria-selected="true"] { color: var(--ca-text) !important; }
   [data-testid="stExpander"] summary { color: var(--ca-text) !important; }
   .stSelectbox label, .stTextInput label, .stToggle label { color: var(--ca-muted) !important; }
-  .block-container { padding-top: 1.2rem; padding-bottom: 1.5rem; }
+  .block-container { padding-top: 0.35rem !important; padding-bottom: 0.5rem !important; }
   .ca-new-chat-hint {
     color: var(--ca-muted) !important;
     font-size: 1.05rem;
-    padding: 2rem 0 1rem;
+    padding: 0.75rem 0 0.5rem;
   }
+  section.main div[data-testid="stVerticalBlockBorderWrapper"] {
+    border: 1px solid var(--ca-border) !important;
+    border-radius: 8px !important;
+    background: var(--ca-panel) !important;
+    padding: 0.5rem 0.65rem !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+  section.main div[data-testid="stVerticalBlockBorderWrapper"] > div[data-testid="stVerticalBlock"] {
+    height: calc(100vh - 9.25rem) !important;
+    max-height: calc(100vh - 9.25rem) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+  section.main div[data-testid="column"] { align-self: stretch !important; }
+  [data-testid="stSidebar"] .streamlit-expanderHeader {
+    font-family: "IBM Plex Mono", ui-monospace, monospace !important;
+    font-size: 0.76rem !important;
+    padding: 0.15rem 0 !important;
+  }
+  [data-testid="stSidebar"] [data-testid="stExpander"] { margin-bottom: 0.15rem !important; }
 </style>
 """
     else:
@@ -261,12 +286,34 @@ def _inject_theme(theme: str) -> None:
   [data-testid="stSidebar"] .stButton > button:hover {
     background: #e2e6eb; border-color: var(--ca-border);
   }
-  .block-container { padding-top: 1.2rem; padding-bottom: 1.5rem; }
+  .block-container { padding-top: 0.35rem !important; padding-bottom: 0.5rem !important; }
   .ca-new-chat-hint {
     color: var(--ca-muted) !important;
     font-size: 1.05rem;
-    padding: 2rem 0 1rem;
+    padding: 0.75rem 0 0.5rem;
   }
+  section.main div[data-testid="stVerticalBlockBorderWrapper"] {
+    border: 1px solid var(--ca-border) !important;
+    border-radius: 8px !important;
+    background: var(--ca-panel) !important;
+    padding: 0.5rem 0.65rem !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+  section.main div[data-testid="stVerticalBlockBorderWrapper"] > div[data-testid="stVerticalBlock"] {
+    height: calc(100vh - 9.25rem) !important;
+    max-height: calc(100vh - 9.25rem) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+  section.main div[data-testid="column"] { align-self: stretch !important; }
+  [data-testid="stSidebar"] .streamlit-expanderHeader {
+    font-family: "IBM Plex Mono", ui-monospace, monospace !important;
+    font-size: 0.76rem !important;
+    padding: 0.15rem 0 !important;
+  }
+  [data-testid="stSidebar"] [data-testid="stExpander"] { margin-bottom: 0.15rem !important; }
 </style>
 """
     st.markdown(css, unsafe_allow_html=True)
@@ -389,6 +436,106 @@ def _should_keep_trace(step: str | None) -> bool:
     return True
 
 
+def _sidebar_skip(name: str, path: Path) -> bool:
+    if name.startswith(".") or name in IGNORE_DIR_NAMES:
+        return True
+    if "__pycache__" in path.parts:
+        return True
+    if path.is_file() and path.suffix.lower() in IGNORE_SUFFIXES:
+        return True
+    return False
+
+
+def _list_workspace_files(
+    workspace: Path,
+    rel_dir: str = "",
+    depth: int = 0,
+    max_depth: int = 4,
+    counter: list[int] | None = None,
+) -> list[str]:
+    if counter is None:
+        counter = [0]
+    if depth > max_depth or counter[0] >= 200:
+        return []
+    base = workspace / rel_dir if rel_dir else workspace
+    try:
+        children = sorted(base.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+    except OSError:
+        return []
+    out: list[str] = []
+    for child in children:
+        if _sidebar_skip(child.name, child):
+            continue
+        rel = str(child.relative_to(workspace))
+        if child.is_dir():
+            out.extend(_list_workspace_files(workspace, rel, depth + 1, max_depth, counter))
+        else:
+            counter[0] += 1
+            out.append(rel)
+    return out
+
+
+def _format_file_pick(path: str) -> str:
+    if path == "—":
+        return "Select a file…"
+    return " › ".join(path.split("/"))
+
+
+def _render_file_picker(workspace: Path) -> None:
+    files = sorted(_list_workspace_files(workspace))
+    if not files:
+        st.caption("Empty workspace")
+        return
+    options = ["—"] + files
+    current = st.session_state.selected_file
+    idx = options.index(current) if current in options else 0
+    picked = st.selectbox(
+        "Open file",
+        options,
+        index=idx,
+        format_func=_format_file_pick,
+        label_visibility="collapsed",
+    )
+    if picked != "—" and picked != st.session_state.selected_file:
+        st.session_state.selected_file = picked
+        st.rerun()
+    st.caption(f"{len(files)} files")
+
+
+def _sidebar_settings(workspace: Path) -> None:
+    with st.expander("Settings", expanded=False):
+        st.radio(
+            "Theme",
+            ["Light", "Dark"],
+            horizontal=True,
+            key="theme",
+        )
+        models = list_models() or [MODEL_NAME]
+        default_idx = (
+            models.index(st.session_state.model) if st.session_state.model in models else 0
+        )
+        st.session_state.model = st.selectbox("Model", models, index=default_idx)
+        st.session_state.auto_approve = st.toggle(
+            "Auto-approve tools",
+            value=st.session_state.auto_approve,
+            help="Off = approve execute / write / edit / delete",
+        )
+        st.session_state.show_trace = st.toggle(
+            "Show activity trace",
+            value=st.session_state.show_trace,
+        )
+        ws_in = st.text_input("Workspace", value=st.session_state.workspace)
+        if ws_in.strip() and ws_in.strip() != st.session_state.workspace:
+            st.session_state.workspace = str(resolve_workspace(ws_in.strip()))
+            st.cache_resource.clear()
+            st.rerun()
+        ok = ollama_available()
+        tid = st.session_state.thread_id[:8] if st.session_state.thread_id else "new"
+        st.caption(f"{'●' if ok else '○'} {st.session_state.model} · {tid}")
+        if st.button("Clear chat", use_container_width=True):
+            _go_new_chat()
+
+
 def _consume_events(events, status_box, live, assistant_chunks: list[str]) -> None:
     for event in events:
         et = event.type
@@ -509,59 +656,10 @@ def _sidebar(workspace: Path) -> None:
             store.delete(st.session_state.thread_id)
             _go_new_chat()
 
-    with st.expander("Settings", expanded=False):
-        st.radio(
-            "Theme",
-            ["Light", "Dark"],
-            horizontal=True,
-            key="theme",
-        )
-        models = list_models() or [MODEL_NAME]
-        default_idx = (
-            models.index(st.session_state.model) if st.session_state.model in models else 0
-        )
-        st.session_state.model = st.selectbox("Model", models, index=default_idx)
-        st.session_state.auto_approve = st.toggle(
-            "Auto-approve tools",
-            value=st.session_state.auto_approve,
-            help="Off = approve execute / write / edit / delete",
-        )
-        st.session_state.show_trace = st.toggle(
-            "Show activity trace",
-            value=st.session_state.show_trace,
-        )
-        ws_in = st.text_input("Workspace", value=st.session_state.workspace)
-        if ws_in.strip() and ws_in.strip() != st.session_state.workspace:
-            st.session_state.workspace = str(resolve_workspace(ws_in.strip()))
-            st.cache_resource.clear()
-            st.rerun()
-        ok = ollama_available()
-        tid = st.session_state.thread_id[:8] if st.session_state.thread_id else "new"
-        st.caption(f"{'●' if ok else '○'} {st.session_state.model} · {tid}")
-        if st.button("Clear chat", use_container_width=True):
-            _go_new_chat()
-
     st.markdown('<div class="ca-section">Files</div>', unsafe_allow_html=True)
-    entries = [e for e in tree_snapshot(workspace) if not e.endswith("/")]
-    if not entries:
-        st.caption("Empty workspace")
-    else:
-        options = ["—"] + entries
-        current = st.session_state.selected_file if st.session_state.selected_file in entries else "—"
-        picked = st.selectbox(
-            "Open file",
-            options,
-            index=options.index(current) if current in options else 0,
-            label_visibility="collapsed",
-        )
-        if picked != "—" and picked != st.session_state.selected_file:
-            st.session_state.selected_file = picked
-            st.rerun()
-        for entry in entries[:40]:
-            label = f"› {entry}" if entry == st.session_state.selected_file else entry
-            if st.button(label, key=f"file-{entry}", use_container_width=True):
-                st.session_state.selected_file = entry
-                st.rerun()
+    _render_file_picker(workspace)
+
+    _sidebar_settings(workspace)
 
 
 def _approval_panel(bridge: DeepAgentsBridge) -> None:
@@ -729,14 +827,15 @@ def main() -> None:
     chat_col, code_col = st.columns([1.2, 1], gap="large")
 
     with chat_col:
-        if st.session_state.new_chat_mode and not st.session_state.messages:
-            st.markdown(
-                '<div class="ca-new-chat-hint">New chat</div>',
-                unsafe_allow_html=True,
-            )
         _approval_panel(bridge)
-        _render_chat_history()
-        _trace_panel()
+        with st.container(height=PANEL_SCROLL_HEIGHT, border=True):
+            if st.session_state.new_chat_mode and not st.session_state.messages:
+                st.markdown(
+                    '<div class="ca-new-chat-hint">New chat</div>',
+                    unsafe_allow_html=True,
+                )
+            _render_chat_history()
+            _trace_panel()
 
         blocked = st.session_state.pending_interrupt is not None
         prompt = None
@@ -773,7 +872,8 @@ def main() -> None:
             st.rerun()
 
     with code_col:
-        _editor_panel(workspace)
+        with st.container(height=PANEL_SCROLL_HEIGHT, border=True):
+            _editor_panel(workspace)
 
 
 if __name__ == "__main__":
