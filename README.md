@@ -93,6 +93,11 @@ Cursor 스타일 단일 에디터 레이아웃:
 
 에이전트 실행은 `DeepAgentsBridge` → `create_cli_agent()` 그대로.
 
+### Workbench 제한
+
+- **Terminal**은 PTY가 아닙니다. `input()`을 쓰는 대화형 Python 프로그램은 사용자 입력을 받지 못할 수 있습니다. (추후 PTY Terminal 적용 예정)
+- Header **▶ Run**은 `python3 '<file>'`을 Terminal에서 바로 실행합니다. `input()`이 감지되면 안내만 표시하고 자동 실행하지 않습니다.
+
 
 ## 참고
 

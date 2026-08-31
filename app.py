@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 import sys
 from html import escape
 from pathlib import Path
@@ -209,6 +210,14 @@ def _inject_theme(theme: str) -> None:
     box-sizing: border-box !important;
   }
   section.main div[data-testid="column"] { align-self: stretch !important; }
+  .ca-wb-header [data-testid="stMarkdownContainer"] p { margin-bottom: 0.1rem !important; }
+  .ca-wb-actions .stButton > button {
+    white-space: nowrap !important;
+    min-width: 2.4rem !important;
+    padding: 0.2rem 0.5rem !important;
+    font-size: 0.82rem !important;
+  }
+  section.main [data-testid="stExpander"] { margin-top: 0.25rem !important; margin-bottom: 0.25rem !important; }
   [data-testid="stSidebar"] .streamlit-expanderHeader {
     font-family: "IBM Plex Mono", ui-monospace, monospace !important;
     font-size: 0.76rem !important;
@@ -323,6 +332,14 @@ def _inject_theme(theme: str) -> None:
     box-sizing: border-box !important;
   }
   section.main div[data-testid="column"] { align-self: stretch !important; }
+  .ca-wb-header [data-testid="stMarkdownContainer"] p { margin-bottom: 0.1rem !important; }
+  .ca-wb-actions .stButton > button {
+    white-space: nowrap !important;
+    min-width: 2.4rem !important;
+    padding: 0.2rem 0.5rem !important;
+    font-size: 0.82rem !important;
+  }
+  section.main [data-testid="stExpander"] { margin-top: 0.25rem !important; margin-bottom: 0.25rem !important; }
   [data-testid="stSidebar"] .streamlit-expanderHeader {
     font-family: "IBM Plex Mono", ui-monospace, monospace !important;
     font-size: 0.76rem !important;
@@ -407,6 +424,10 @@ def _init_state() -> None:
         st.session_state.terminal_cmd_prefill = ""
     if "terminal_open" not in st.session_state:
         st.session_state.terminal_open = False
+    if "terminal_auto_run" not in st.session_state:
+        st.session_state.terminal_auto_run = None
+    if "terminal_interactive_warn" not in st.session_state:
+        st.session_state.terminal_interactive_warn = False
 
 
 def _persist_messages() -> None:
@@ -525,6 +546,42 @@ def _preview_eligible(workspace: Path, rel: str) -> str | None:
     if kind in {"streamlit", "flask", "fastapi"}:
         return "web"
     return None
+
+
+def _python_run_cmd(rel: str) -> str:
+    return f"python3 {shlex.quote(rel)}"
+
+
+def _file_has_input_call(text: str) -> bool:
+    return "input(" in (text or "")
+
+
+def _start_terminal_command(workspace: Path, cmd: str) -> bool:
+    ok, msg = validate_user_command(cmd)
+    if not ok:
+        st.error(msg)
+        return False
+    bg = start_user_command_bg(workspace, cmd)
+    if not bg.get("ok"):
+        st.error(bg.get("error") or "Failed to start")
+        return False
+    st.session_state.terminal_proc = bg["proc"]
+    st.session_state.terminal_running_cmd = cmd
+    st.session_state.terminal_output_buf = ""
+    st.session_state.terminal_open = True
+    return True
+
+
+def _trigger_header_run(workspace: Path, rel: str) -> None:
+    cmd = _python_run_cmd(rel)
+    st.session_state.terminal_open = True
+    st.session_state["user-terminal-cmd"] = cmd
+    source = st.session_state.editor_draft or st.session_state.editor_disk or ""
+    if _file_has_input_call(source):
+        st.session_state.terminal_interactive_warn = True
+    else:
+        st.session_state.terminal_auto_run = cmd
+    st.rerun()
 
 
 def _should_keep_trace(step: str | None) -> bool:
@@ -885,41 +942,49 @@ def _save_editor_file(workspace: Path, rel: str) -> None:
 
 
 def _editor_header(workspace: Path, rel: str, *, dirty: bool, preview_kind: str | None) -> None:
-    left, right = st.columns([3, 2])
+    name = Path(rel).name
+    left, right = st.columns([6, 4], gap="small")
     with left:
-        st.markdown(f"**{escape(Path(rel).name)}**")
-        status = "Modified · " if dirty else ""
-        st.caption(f"{status}{rel}")
+        title = escape(name)
+        if dirty:
+            st.markdown(f"**{title}** · Modified")
+        else:
+            st.markdown(f"**{title}**")
+        if rel != name:
+            st.caption(rel)
 
-    actions: list[tuple[str, str]] = []
+    actions: list[tuple[str, str, str]] = []
     if _diff_for_file(rel) or _change_file_count() > 0:
-        actions.append(("changes", f"Changes {_change_file_count()}"))
+        actions.append(("changes", f"Changes {_change_file_count()}", "Show file changes"))
     if preview_kind and not st.session_state.wb_preview_mode:
-        actions.append(("preview", "Preview"))
+        actions.append(("preview", "Preview", "Open web preview"))
     elif preview_kind is None and rel.lower().endswith(".py"):
-        actions.append(("run_term", "Run in Terminal"))
-    actions.append(("save", "Save"))
-    actions.append(("more", "⋯"))
+        actions.append(("run", "▶ Run", "Run current file in Terminal"))
+    if dirty:
+        actions.append(("save", "Save", "Save file"))
+    actions.append(("more", "⋯", "More actions"))
 
     with right:
-        cols = st.columns(len(actions))
-        for col, (action, label) in zip(cols, actions):
+        st.markdown('<div class="ca-wb-actions">', unsafe_allow_html=True)
+        cols = st.columns(len(actions), gap="small")
+        for col, (action, label, help_text) in zip(cols, actions):
             with col:
-                if action == "changes" and st.button(label, key="wb-changes"):
-                    st.session_state.wb_show_diff = not st.session_state.wb_show_diff
-                    st.rerun()
-                elif action == "preview" and st.button(label, key="wb-preview"):
-                    st.session_state.wb_preview_mode = True
-                    st.rerun()
-                elif action == "run_term" and st.button(label, key="wb-run-term"):
-                    st.session_state.terminal_cmd_prefill = f"python3 {rel}"
-                    st.session_state.terminal_open = True
-                    st.rerun()
+                if action == "changes":
+                    if st.button(label, key="wb-changes", help=help_text, use_container_width=True):
+                        st.session_state.wb_show_diff = not st.session_state.wb_show_diff
+                        st.rerun()
+                elif action == "preview":
+                    if st.button(label, key="wb-preview", help=help_text, use_container_width=True):
+                        st.session_state.wb_preview_mode = True
+                        st.rerun()
+                elif action == "run":
+                    if st.button(label, key="wb-run", help=help_text, use_container_width=True):
+                        _trigger_header_run(workspace, rel)
                 elif action == "save":
-                    if st.button(label, key="wb-save", type="primary", disabled=not dirty):
+                    if st.button(label, key="wb-save", type="primary", help=help_text, use_container_width=True):
                         st.session_state.editor_pending_save = True
                 elif action == "more":
-                    with st.popover(label):
+                    with st.popover(label, help=help_text):
                         if st.button("Reload", key="wb-reload"):
                             st.session_state.editor_force_reload = True
                             st.session_state.editor_pending_save = False
@@ -933,10 +998,11 @@ def _editor_header(workspace: Path, rel: str, *, dirty: bool, preview_kind: str 
                             if st.button("Back to editor", key="wb-back-editor"):
                                 st.session_state.wb_preview_mode = False
                                 st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     if st.session_state.editor_pending_save:
-        c1, c2, c3 = st.columns([2, 1, 1])
-        c1.caption(f"Save `{Path(rel).name}`?")
+        c1, c2, c3 = st.columns([3, 1, 1])
+        c1.caption(f"Save `{name}`?")
         if c2.button("Confirm", key="wb-save-yes", type="primary"):
             _save_editor_file(workspace, rel)
         if c3.button("Cancel", key="wb-save-no"):
@@ -944,7 +1010,7 @@ def _editor_header(workspace: Path, rel: str, *, dirty: bool, preview_kind: str 
             st.rerun()
 
 
-def _editor_body(workspace: Path, rel: str) -> None:
+def _editor_body(workspace: Path, rel: str, *, term_open: bool) -> None:
     try:
         path = resolve_workspace_file(workspace, rel)
     except PermissionError as exc:
@@ -957,10 +1023,11 @@ def _editor_body(workspace: Path, rel: str) -> None:
     if kind == "missing":
         st.warning("File not found.")
         return
+    height = 440 if term_open else 540
     draft = st.text_area(
         "Editor",
         value=st.session_state.editor_draft,
-        height=360,
+        height=height,
         key=f"editor-area-{rel}",
         label_visibility="collapsed",
     )
@@ -1062,6 +1129,16 @@ def _preview_body(workspace: Path, rel: str, preview_kind: str) -> None:
 
 
 def _terminal_panel(workspace: Path) -> None:
+    if st.session_state.terminal_interactive_warn:
+        st.warning("Interactive input is not supported in this terminal MVP.")
+        st.session_state.terminal_interactive_warn = False
+
+    auto_cmd = st.session_state.terminal_auto_run
+    if auto_cmd and st.session_state.terminal_proc is None:
+        st.session_state.terminal_auto_run = None
+        if _start_terminal_command(workspace, auto_cmd):
+            st.rerun()
+
     proc = st.session_state.terminal_proc
     if proc is not None:
         chunk, running, code = poll_user_terminal(proc)
@@ -1082,7 +1159,6 @@ def _terminal_panel(workspace: Path) -> None:
             st.rerun()
 
     if st.session_state.terminal_proc is not None:
-        st.caption("Running…")
         if st.session_state.terminal_output_buf:
             st.code(st.session_state.terminal_output_buf[-8000:])
         if st.button("Stop", type="primary", key="term-stop"):
@@ -1105,31 +1181,24 @@ def _terminal_panel(workspace: Path) -> None:
     if prefill:
         st.session_state["user-terminal-cmd"] = prefill
         st.session_state.terminal_cmd_prefill = ""
-        st.session_state.terminal_open = True
+
     cmd = st.text_input(
         "Command",
         placeholder="python3 calculator.py",
         key="user-terminal-cmd",
         label_visibility="collapsed",
     )
+    if not (cmd or "").strip() and not st.session_state.terminal_history:
+        st.caption("Enter a command, or use ▶ Run in the header.")
+
     high_risk = _command_high_risk(cmd)
-    if high_risk:
+    if high_risk and (cmd or "").strip():
         st.checkbox("Confirm potentially destructive command", key="terminal_danger_ack")
 
     run_disabled = not (cmd or "").strip() or (high_risk and not st.session_state.get("terminal_danger_ack"))
     if st.button("Run", type="primary", key="term-run", disabled=run_disabled):
-        ok, msg = validate_user_command(cmd)
-        if not ok:
-            st.error(msg)
-        else:
-            bg = start_user_command_bg(workspace, cmd)
-            if not bg.get("ok"):
-                st.error(bg.get("error") or "Failed to start")
-            else:
-                st.session_state.terminal_proc = bg["proc"]
-                st.session_state.terminal_running_cmd = cmd
-                st.session_state.terminal_output_buf = ""
-                st.rerun()
+        if _start_terminal_command(workspace, cmd):
+            st.rerun()
 
     if st.session_state.terminal_history:
         with st.expander("History", expanded=False):
@@ -1166,7 +1235,7 @@ def _workbench_panel(workspace: Path) -> None:
     if st.session_state.wb_preview_mode and preview_kind:
         _preview_body(workspace, rel, preview_kind)
     else:
-        _editor_body(workspace, rel)
+        _editor_body(workspace, rel, term_open=term_open)
 
     if st.session_state.wb_show_diff and (_diff_for_file(rel) or _change_file_count() > 0):
         with st.expander("Changes", expanded=True):
