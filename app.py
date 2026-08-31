@@ -1024,6 +1024,27 @@ def _editor_body(workspace: Path, rel: str, *, term_open: bool) -> None:
         st.warning("File not found.")
         return
     height = 440 if term_open else 540
+
+    if rel.lower().endswith(".md"):
+        preview_tab, source_tab = st.tabs(["Preview", "Source"])
+        with preview_tab:
+            body = st.session_state.editor_draft or ""
+            with st.container(height=height):
+                if body.strip():
+                    st.markdown(body)
+                else:
+                    st.caption("Nothing to preview.")
+        with source_tab:
+            draft = st.text_area(
+                "Editor",
+                value=st.session_state.editor_draft,
+                height=height,
+                key=f"editor-area-{rel}",
+                label_visibility="collapsed",
+            )
+            st.session_state.editor_draft = draft
+        return
+
     draft = st.text_area(
         "Editor",
         value=st.session_state.editor_draft,
