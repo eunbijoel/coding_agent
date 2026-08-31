@@ -6,6 +6,8 @@ from html import escape
 from pathlib import Path
 
 import streamlit as st
+import streamlit_antd_components as sac
+from streamlit_antd_components import BsIcon, TreeItem
 
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
@@ -45,6 +47,9 @@ MAIN_SPLIT_MIN = 30
 MAIN_SPLIT_MAX = 70
 MAIN_SPLIT_DEFAULT = 55
 MAIN_SPLIT_STORAGE_KEY = "keti-ca-main-split"
+FE_FOLDER_PREFIX = "folder:"
+FE_MAX_DEPTH = 8
+FE_MAX_NODES = 400
 
 
 def _inject_theme(theme: str) -> None:
@@ -283,6 +288,7 @@ def _inject_theme(theme: str) -> None:
     padding: 0.15rem 0 !important;
   }
   [data-testid="stSidebar"] [data-testid="stExpander"] { margin-bottom: 0.15rem !important; }
+  [data-testid="stSidebar"] .ca-fe-title { margin-bottom: 0 !important; }
 </style>
 """
     else:
@@ -460,6 +466,7 @@ def _inject_theme(theme: str) -> None:
     padding: 0.15rem 0 !important;
   }
   [data-testid="stSidebar"] [data-testid="stExpander"] { margin-bottom: 0.15rem !important; }
+  [data-testid="stSidebar"] .ca-fe-title { margin-bottom: 0 !important; }
 </style>
 """
     st.markdown(css, unsafe_allow_html=True)
@@ -544,6 +551,10 @@ def _init_state() -> None:
         st.session_state.terminal_interactive_warn = False
     if "main_chat_weight" not in st.session_state:
         st.session_state.main_chat_weight = MAIN_SPLIT_DEFAULT
+    if "file_explorer_expanded" not in st.session_state:
+        st.session_state.file_explorer_expanded = []
+    if "fe_pick_key" not in st.session_state:
+        st.session_state.fe_pick_key = None
 
 
 def _sync_main_split_from_query() -> None:
@@ -982,23 +993,30 @@ def _list_workspace_files(
     workspace: Path,
     rel_dir: str = "",
     depth: int = 0,
-    max_depth: int = 4,
+    max_depth: int = FE_MAX_DEPTH,
     counter: list[int] | None = None,
 ) -> list[str]:
     if counter is None:
         counter = [0]
-    if depth > max_depth or counter[0] >= 200:
+    if depth > max_depth or counter[0] >= FE_MAX_NODES:
         return []
-    base = workspace / rel_dir if rel_dir else workspace
+    base = _safe_workspace_path(workspace, rel_dir) if rel_dir else workspace.resolve()
+    if base is None or not base.is_dir():
+        return []
     try:
         children = sorted(base.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
     except OSError:
         return []
     out: list[str] = []
+    root = workspace.resolve()
     for child in children:
+        try:
+            child.resolve().relative_to(root)
+        except ValueError:
+            continue
         if _sidebar_skip(child.name, child):
             continue
-        rel = str(child.relative_to(workspace))
+        rel = str(child.relative_to(root))
         if child.is_dir():
             out.extend(_list_workspace_files(workspace, rel, depth + 1, max_depth, counter))
         else:
@@ -1007,32 +1025,242 @@ def _list_workspace_files(
     return out
 
 
-def _format_file_pick(path: str) -> str:
-    if path == "—":
-        return "Select a file…"
-    return " › ".join(path.split("/"))
+def _safe_workspace_path(workspace: Path, rel: str) -> Path | None:
+    root = workspace.resolve()
+    try:
+        target = (root / rel).resolve()
+        target.relative_to(root)
+    except (ValueError, OSError):
+        return None
+    return target
 
 
-def _render_file_picker(workspace: Path) -> None:
-    files = sorted(_list_workspace_files(workspace))
-    if not files:
-        st.caption("Empty workspace")
+def _workspace_children(workspace: Path, rel_dir: str = "") -> list[Path]:
+    base = _safe_workspace_path(workspace, rel_dir) if rel_dir else workspace.resolve()
+    if base is None or not base.is_dir():
+        return []
+    try:
+        children = sorted(base.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+    except OSError:
+        return []
+    out: list[Path] = []
+    root = workspace.resolve()
+    for child in children:
+        try:
+            child.resolve().relative_to(root)
+        except ValueError:
+            continue
+        if _sidebar_skip(child.name, child):
+            continue
+        out.append(child)
+    return out
+
+
+def _fe_folder_value(rel: str) -> str:
+    return f"{FE_FOLDER_PREFIX}{rel}"
+
+
+def _fe_display_name(node_value: str) -> str:
+    if node_value.startswith(FE_FOLDER_PREFIX):
+        rel = node_value.removeprefix(FE_FOLDER_PREFIX)
+        return rel.rsplit("/", 1)[-1] if rel else "workspace"
+    return node_value.rsplit("/", 1)[-1]
+
+
+def _fe_is_file_node(node_value: str | None) -> bool:
+    return bool(node_value) and not node_value.startswith(FE_FOLDER_PREFIX)
+
+
+def _fe_file_icon(path: Path) -> BsIcon:
+    ext = path.suffix.lower()
+    if ext == ".py":
+        return BsIcon("filetype-py")
+    if ext == ".md":
+        return BsIcon("file-earmark-text")
+    if ext in {".json", ".yaml", ".yml", ".toml"}:
+        return BsIcon("filetype-json")
+    if ext in {".html", ".htm", ".css", ".js", ".ts", ".tsx", ".jsx"}:
+        return BsIcon("filetype-html")
+    return BsIcon("file-earmark")
+
+
+def _expanded_dirs() -> set[str]:
+    raw = st.session_state.file_explorer_expanded
+    return set(raw) if isinstance(raw, list) else set()
+
+
+def _set_expanded_dirs(expanded: set[str]) -> None:
+    st.session_state.file_explorer_expanded = sorted(expanded)
+
+
+def _expand_parent_dirs(rel: str) -> None:
+    if not rel:
         return
-    options = ["—"] + files
-    current = st.session_state.selected_file
-    idx = options.index(current) if current in options else 0
-    picked = st.selectbox(
-        "Open file",
-        options,
-        index=idx,
-        format_func=_format_file_pick,
-        label_visibility="collapsed",
-    )
-    if picked != "—" and picked != st.session_state.selected_file:
+    parts = Path(rel).parts
+    if len(parts) <= 1:
+        return
+    expanded = _expanded_dirs()
+    for i in range(len(parts) - 1):
+        expanded.add(str(Path(*parts[: i + 1])))
+    _set_expanded_dirs(expanded)
+
+
+def _ensure_selected_parents_expanded() -> None:
+    rel = st.session_state.selected_file
+    if rel:
+        _expand_parent_dirs(rel)
+
+
+def _build_fe_tree_children(
+    workspace: Path,
+    rel_dir: str,
+    *,
+    depth: int,
+    counter: list[int],
+) -> list[TreeItem]:
+    if depth > FE_MAX_DEPTH or counter[0] >= FE_MAX_NODES:
+        return []
+    root = workspace.resolve()
+    items: list[TreeItem] = []
+    for child in _workspace_children(workspace, rel_dir):
+        rel = str(child.relative_to(root))
+        counter[0] += 1
+        if child.is_dir():
+            children = _build_fe_tree_children(workspace, rel, depth=depth + 1, counter=counter)
+            items.append(
+                TreeItem(
+                    label=_fe_folder_value(rel),
+                    icon=BsIcon("folder"),
+                    children=children or None,
+                )
+            )
+            continue
+        items.append(TreeItem(label=rel, icon=_fe_file_icon(child)))
+    return items
+
+
+def _build_fe_tree_root(workspace: Path) -> list[TreeItem]:
+    counter = [0]
+    children = _build_fe_tree_children(workspace, "", depth=0, counter=counter)
+    return [
+        TreeItem(
+            label=_fe_folder_value("workspace"),
+            icon=BsIcon("folder2-open"),
+            children=children or None,
+        )
+    ]
+
+
+def _fe_walk_tree(items: list[TreeItem]):
+    idx = 0
+
+    def walk(nodes: list[TreeItem]):
+        nonlocal idx
+        for node in nodes:
+            yield idx, node
+            idx += 1
+            if node.children:
+                yield from walk(node.children)
+
+    yield from walk(items)
+
+
+def _fe_selected_index(items: list[TreeItem], target: str | None) -> int | None:
+    if not target:
+        return None
+    for index, node in _fe_walk_tree(items):
+        if node.label == target:
+            return index
+    return None
+
+
+def _fe_open_index(items: list[TreeItem], expanded: set[str], selected: str | None) -> list[int]:
+    open_index: list[int] = []
+    for index, node in _fe_walk_tree(items):
+        if not node.label.startswith(FE_FOLDER_PREFIX):
+            continue
+        rel = node.label.removeprefix(FE_FOLDER_PREFIX)
+        if rel == "workspace":
+            open_index.append(index)
+            continue
+        if rel in expanded:
+            open_index.append(index)
+            continue
+        if selected and (selected.startswith(f"{rel}/") or selected == rel):
+            open_index.append(index)
+    return open_index
+
+
+def _handle_fe_tree_pick(picked: str | None) -> None:
+    if not picked:
+        return
+    if picked.startswith(FE_FOLDER_PREFIX):
+        rel = picked.removeprefix(FE_FOLDER_PREFIX)
+        if rel == "workspace":
+            return
+        expanded = _expanded_dirs()
+        if rel in expanded:
+            expanded.discard(rel)
+        else:
+            expanded.add(rel)
+        _set_expanded_dirs(expanded)
+        return
+    if st.session_state.selected_file != picked:
         st.session_state.selected_file = picked
         st.session_state.editor_force_reload = True
+        _expand_parent_dirs(picked)
         st.rerun()
-    st.caption(f"{len(files)} files")
+
+
+def _refresh_file_explorer(workspace: Path) -> None:
+    files = set(_list_workspace_files(workspace))
+    sel = st.session_state.selected_file
+    if sel and sel not in files:
+        st.session_state.selected_file = None
+
+
+@st.fragment
+def _file_explorer_tree(workspace: Path) -> None:
+    _ensure_selected_parents_expanded()
+    items = _build_fe_tree_root(workspace)
+    expanded = _expanded_dirs()
+    selected = st.session_state.selected_file
+    open_index = _fe_open_index(items, expanded, selected)
+    sel_idx = _fe_selected_index(items, selected)
+    picked = sac.tree(
+        items,
+        index=sel_idx if sel_idx is not None else 0,
+        format_func=_fe_display_name,
+        checkbox=False,
+        show_line=True,
+        open_index=open_index,
+        height=380,
+        size="sm",
+        return_index=False,
+        key="fe_tree",
+    )
+    if isinstance(picked, list):
+        picked = picked[0] if picked else None
+    prev_key = st.session_state.fe_pick_key
+    if prev_key is not None and picked != prev_key:
+        _handle_fe_tree_pick(picked)
+    st.session_state.fe_pick_key = picked
+
+
+def _render_file_explorer(workspace: Path) -> None:
+    head_left, head_right = st.columns([5, 1], gap="small")
+    with head_left:
+        st.markdown('<div class="ca-section ca-fe-title">Files</div>', unsafe_allow_html=True)
+    with head_right:
+        if st.button("↻", key="fe-refresh", help="Refresh file tree", type="tertiary"):
+            _refresh_file_explorer(workspace)
+            st.rerun()
+
+    children = _build_fe_tree_root(workspace)[0].children
+    if not children:
+        st.caption("Empty workspace")
+        return
+    _file_explorer_tree(workspace)
 
 
 def _sidebar_settings(workspace: Path) -> None:
@@ -1189,8 +1417,7 @@ def _sidebar(workspace: Path) -> None:
             store.delete(st.session_state.thread_id)
             _go_new_chat()
 
-    st.markdown('<div class="ca-section">Files</div>', unsafe_allow_html=True)
-    _render_file_picker(workspace)
+    _render_file_explorer(workspace)
 
     _sidebar_settings(workspace)
 
