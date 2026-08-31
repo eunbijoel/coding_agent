@@ -41,6 +41,10 @@ st.set_page_config(
 
 # Enables per-panel scroll regions; CSS overrides to viewport height.
 PANEL_SCROLL_HEIGHT = 720
+MAIN_SPLIT_MIN = 30
+MAIN_SPLIT_MAX = 70
+MAIN_SPLIT_DEFAULT = 55
+MAIN_SPLIT_STORAGE_KEY = "keti-ca-main-split"
 
 
 def _inject_theme(theme: str) -> None:
@@ -209,7 +213,8 @@ def _inject_theme(theme: str) -> None:
     overflow-x: hidden !important;
     box-sizing: border-box !important;
   }
-  section.main div[data-testid="column"] { align-self: stretch !important; }
+  section.main div[data-testid="column"],
+  section.main div[data-testid="stColumn"] { align-self: stretch !important; }
   .ca-wb-header [data-testid="stMarkdownContainer"] p { margin-bottom: 0.1rem !important; }
   .ca-wb-actions .stButton > button {
     white-space: nowrap !important;
@@ -218,6 +223,60 @@ def _inject_theme(theme: str) -> None:
     font-size: 0.82rem !important;
   }
   section.main [data-testid="stExpander"] { margin-top: 0.25rem !important; margin-bottom: 0.25rem !important; }
+  section.main div:has(> #ca-split-pane-boot),
+  section.main [data-testid="stElementContainer"]:has(#ca-split-pane-boot) {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+  section.main [data-testid="stHorizontalBlock"]:has(.ca-panel-chat-marker) {
+    position: relative !important;
+    flex-wrap: nowrap !important;
+    gap: 0 !important;
+    column-gap: 0 !important;
+    row-gap: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    align-items: stretch !important;
+    overflow: hidden !important;
+  }
+  section.main [data-testid="stColumn"]:has(.ca-panel-chat-marker),
+  section.main [data-testid="stColumn"]:has(.ca-panel-editor-marker) {
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+  #ca-split-drag-handle {
+    position: absolute;
+    top: 0;
+    width: 10px;
+    margin-left: -5px;
+    cursor: col-resize;
+    z-index: 100;
+    background: transparent;
+    touch-action: none;
+    user-select: none;
+  }
+  #ca-split-drag-handle::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--ca-border);
+    pointer-events: none;
+    transition: background 0.15s ease;
+  }
+  #ca-split-drag-handle:hover::after,
+  #ca-split-drag-handle.ca-split-dragging::after {
+    width: 3px;
+    left: 3px;
+    background: var(--ca-accent);
+  }
   [data-testid="stSidebar"] .streamlit-expanderHeader {
     font-family: "IBM Plex Mono", ui-monospace, monospace !important;
     font-size: 0.76rem !important;
@@ -331,7 +390,8 @@ def _inject_theme(theme: str) -> None:
     overflow-x: hidden !important;
     box-sizing: border-box !important;
   }
-  section.main div[data-testid="column"] { align-self: stretch !important; }
+  section.main div[data-testid="column"],
+  section.main div[data-testid="stColumn"] { align-self: stretch !important; }
   .ca-wb-header [data-testid="stMarkdownContainer"] p { margin-bottom: 0.1rem !important; }
   .ca-wb-actions .stButton > button {
     white-space: nowrap !important;
@@ -340,6 +400,60 @@ def _inject_theme(theme: str) -> None:
     font-size: 0.82rem !important;
   }
   section.main [data-testid="stExpander"] { margin-top: 0.25rem !important; margin-bottom: 0.25rem !important; }
+  section.main div:has(> #ca-split-pane-boot),
+  section.main [data-testid="stElementContainer"]:has(#ca-split-pane-boot) {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+  section.main [data-testid="stHorizontalBlock"]:has(.ca-panel-chat-marker) {
+    position: relative !important;
+    flex-wrap: nowrap !important;
+    gap: 0 !important;
+    column-gap: 0 !important;
+    row-gap: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    align-items: stretch !important;
+    overflow: hidden !important;
+  }
+  section.main [data-testid="stColumn"]:has(.ca-panel-chat-marker),
+  section.main [data-testid="stColumn"]:has(.ca-panel-editor-marker) {
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+  #ca-split-drag-handle {
+    position: absolute;
+    top: 0;
+    width: 10px;
+    margin-left: -5px;
+    cursor: col-resize;
+    z-index: 100;
+    background: transparent;
+    touch-action: none;
+    user-select: none;
+  }
+  #ca-split-drag-handle::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--ca-border);
+    pointer-events: none;
+    transition: background 0.15s ease;
+  }
+  #ca-split-drag-handle:hover::after,
+  #ca-split-drag-handle.ca-split-dragging::after {
+    width: 3px;
+    left: 3px;
+    background: var(--ca-accent);
+  }
   [data-testid="stSidebar"] .streamlit-expanderHeader {
     font-family: "IBM Plex Mono", ui-monospace, monospace !important;
     font-size: 0.76rem !important;
@@ -428,6 +542,223 @@ def _init_state() -> None:
         st.session_state.terminal_auto_run = None
     if "terminal_interactive_warn" not in st.session_state:
         st.session_state.terminal_interactive_warn = False
+    if "main_chat_weight" not in st.session_state:
+        st.session_state.main_chat_weight = MAIN_SPLIT_DEFAULT
+
+
+def _sync_main_split_from_query() -> None:
+    raw = st.query_params.get("split")
+    if raw is None:
+        return
+    try:
+        w = int(raw)
+    except (TypeError, ValueError):
+        return
+    st.session_state.main_chat_weight = max(MAIN_SPLIT_MIN, min(MAIN_SPLIT_MAX, w))
+
+
+def _inject_main_split_css(chat_w: int) -> None:
+    ed_w = 100 - chat_w
+    st.markdown(
+        f"""
+<style>
+  section.main div[data-testid="stColumn"]:has(.ca-panel-chat-marker) {{
+    flex: 0 0 {chat_w}% !important;
+    max-width: {chat_w}% !important;
+  }}
+  section.main div[data-testid="stColumn"]:has(.ca-panel-editor-marker) {{
+    flex: 0 0 {ed_w}% !important;
+    max-width: {ed_w}% !important;
+  }}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def _split_pane_script(chat_w: int) -> str:
+    initial = int(chat_w)
+    default = MAIN_SPLIT_DEFAULT
+    min_pct = MAIN_SPLIT_MIN
+    max_pct = MAIN_SPLIT_MAX
+    storage_key = MAIN_SPLIT_STORAGE_KEY
+    return f"""<div id="ca-split-pane-boot" hidden aria-hidden="true"></div>
+<script>
+(function () {{
+  const MIN = {min_pct};
+  const MAX = {max_pct};
+  const DEFAULT = {default};
+  const INITIAL = {initial};
+  const STORAGE_KEY = "{storage_key}";
+  const doc = document;
+
+  function clamp(v) {{
+    return Math.max(MIN, Math.min(MAX, v));
+  }}
+
+  function findPanels() {{
+    const chatMarker = doc.querySelector(".ca-panel-chat-marker");
+    const editorMarker = doc.querySelector(".ca-panel-editor-marker");
+    if (!chatMarker || !editorMarker) return null;
+    const chatCol = chatMarker.closest('[data-testid="stColumn"]')
+      || chatMarker.closest('[data-testid="column"]');
+    const editorCol = editorMarker.closest('[data-testid="stColumn"]')
+      || editorMarker.closest('[data-testid="column"]');
+    if (!chatCol || !editorCol || chatCol === editorCol) return null;
+    const row = chatCol.parentElement;
+    if (!row || row !== editorCol.parentElement) return null;
+    return {{ chatCol, editorCol, row }};
+  }}
+
+  function applyRatio(chatPct, panels) {{
+    const edPct = 100 - chatPct;
+    panels.chatCol.style.setProperty("flex", "0 0 " + chatPct + "%", "important");
+    panels.chatCol.style.setProperty("max-width", chatPct + "%", "important");
+    panels.chatCol.style.setProperty("min-width", "0", "important");
+    panels.editorCol.style.setProperty("flex", "0 0 " + edPct + "%", "important");
+    panels.editorCol.style.setProperty("max-width", edPct + "%", "important");
+    panels.editorCol.style.setProperty("min-width", "0", "important");
+  }}
+
+  function hideBootHost() {{
+    const boot = doc.getElementById("ca-split-pane-boot");
+    if (!boot) return;
+    const host = boot.closest('[data-testid="stElementContainer"]');
+    if (host) {{
+      host.style.setProperty("display", "none", "important");
+      host.style.setProperty("height", "0", "important");
+      host.style.setProperty("margin", "0", "important");
+      host.style.setProperty("padding", "0", "important");
+    }}
+    boot.remove();
+  }}
+
+  function persistRatio(chatPct) {{
+    const rounded = Math.round(chatPct);
+    try {{
+      localStorage.setItem(STORAGE_KEY, String(rounded));
+    }} catch (_e) {{}}
+    try {{
+      const url = new URL(window.location.href);
+      url.searchParams.set("split", String(rounded));
+      window.history.replaceState({{}}, "", url);
+    }} catch (_e) {{}}
+  }}
+
+  function positionHandle(panels, chatPct) {{
+    const handle = doc.getElementById("ca-split-drag-handle");
+    if (!handle || !panels.row) return;
+    const rowRect = panels.row.getBoundingClientRect();
+    const offset = (rowRect.width * chatPct) / 100 - 5;
+    handle.style.left = Math.max(0, offset) + "px";
+    handle.style.height = rowRect.height + "px";
+  }}
+
+  function readStoredRatio() {{
+    try {{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw === null || raw === "") return null;
+      const n = parseFloat(raw);
+      return Number.isFinite(n) ? clamp(n) : null;
+    }} catch (_e) {{
+      return null;
+    }}
+  }}
+
+  let mountAttempts = 0;
+  let currentPct = clamp(INITIAL);
+  let panelsRef = null;
+  let dragging = false;
+
+  function onDocPointerMove(e) {{
+    if (!dragging || !panelsRef) return;
+    const rowRect = panelsRef.row.getBoundingClientRect();
+    if (rowRect.width <= 0) return;
+    currentPct = clamp(((e.clientX - rowRect.left) / rowRect.width) * 100);
+    applyRatio(currentPct, panelsRef);
+    positionHandle(panelsRef, currentPct);
+  }}
+
+  function endDrag() {{
+    if (!dragging) return;
+    dragging = false;
+    const handle = doc.getElementById("ca-split-drag-handle");
+    if (handle) handle.classList.remove("ca-split-dragging");
+    doc.body.style.cursor = "";
+    doc.body.style.userSelect = "";
+    doc.removeEventListener("pointermove", onDocPointerMove);
+    doc.removeEventListener("pointerup", endDrag);
+    doc.removeEventListener("pointercancel", endDrag);
+    persistRatio(currentPct);
+  }}
+
+  function mountSplit() {{
+    hideBootHost();
+    const panels = findPanels();
+    if (!panels) {{
+      mountAttempts += 1;
+      if (mountAttempts < 80) window.setTimeout(mountSplit, 50);
+      return;
+    }}
+
+    panelsRef = panels;
+    panels.row.style.setProperty("position", "relative", "important");
+    panels.row.style.setProperty("flex-wrap", "nowrap", "important");
+    panels.row.style.setProperty("gap", "0", "important");
+    panels.row.style.setProperty("column-gap", "0", "important");
+    const stored = readStoredRatio();
+    currentPct = stored !== null ? stored : clamp(INITIAL);
+    applyRatio(currentPct, panels);
+
+    let handle = doc.getElementById("ca-split-drag-handle");
+    if (handle) handle.remove();
+    handle = doc.createElement("div");
+    handle.id = "ca-split-drag-handle";
+    handle.setAttribute("role", "separator");
+    handle.setAttribute("aria-orientation", "vertical");
+    handle.setAttribute("aria-label", "Resize panels");
+    panels.row.appendChild(handle);
+    positionHandle(panels, currentPct);
+
+    handle.onpointerdown = function (e) {{
+      e.preventDefault();
+      dragging = true;
+      handle.classList.add("ca-split-dragging");
+      doc.body.style.cursor = "col-resize";
+      doc.body.style.userSelect = "none";
+      doc.addEventListener("pointermove", onDocPointerMove);
+      doc.addEventListener("pointerup", endDrag);
+      doc.addEventListener("pointercancel", endDrag);
+    }};
+
+    handle.ondblclick = function (e) {{
+      e.preventDefault();
+      currentPct = DEFAULT;
+      applyRatio(DEFAULT, panels);
+      positionHandle(panels, DEFAULT);
+      persistRatio(DEFAULT);
+    }};
+
+    window.addEventListener("resize", function () {{
+      if (panelsRef) positionHandle(panelsRef, currentPct);
+    }});
+  }}
+
+  if (document.readyState === "loading") {{
+    document.addEventListener("DOMContentLoaded", mountSplit);
+  }} else {{
+    mountSplit();
+  }}
+}})();
+</script>"""
+
+
+def _mount_split_pane() -> None:
+    chat_w = int(st.session_state.main_chat_weight)
+    st.html(
+        _split_pane_script(chat_w),
+        unsafe_allow_javascript=True,
+    )
 
 
 def _persist_messages() -> None:
@@ -1268,6 +1599,7 @@ def _workbench_panel(workspace: Path) -> None:
 
 def main() -> None:
     _init_state()
+    _sync_main_split_from_query()
     _inject_theme(st.session_state.theme)
     workspace = resolve_workspace(st.session_state.workspace)
     st.session_state.workspace = str(workspace)
@@ -1282,10 +1614,18 @@ def main() -> None:
     with st.sidebar:
         _sidebar(workspace)
 
-    # Cursor-like: Chat + Editor only (trace optional)
-    chat_col, code_col = st.columns([1.2, 1], gap="large")
+    # Cursor-like: Chat + draggable split + Editor
+    chat_w = int(st.session_state.main_chat_weight)
+    code_w = 100 - chat_w
+    _inject_main_split_css(chat_w)
+    _mount_split_pane()
+    chat_col, code_col = st.columns([chat_w, code_w], gap=None)
 
     with chat_col:
+        st.markdown(
+            '<span class="ca-panel-chat-marker" aria-hidden="true"></span>',
+            unsafe_allow_html=True,
+        )
         _approval_panel(bridge)
         with st.container(height=PANEL_SCROLL_HEIGHT, border=True):
             if st.session_state.new_chat_mode and not st.session_state.messages:
@@ -1331,6 +1671,10 @@ def main() -> None:
             st.rerun()
 
     with code_col:
+        st.markdown(
+            '<span class="ca-panel-editor-marker" aria-hidden="true"></span>',
+            unsafe_allow_html=True,
+        )
         with st.container(height=PANEL_SCROLL_HEIGHT, border=True):
             _workbench_panel(workspace)
 
