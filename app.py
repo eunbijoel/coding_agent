@@ -649,9 +649,51 @@ def _split_pane_script(chat_w: int) -> str:
     const handle = doc.getElementById("ca-split-drag-handle");
     if (!handle || !panels.row) return;
     const rowRect = panels.row.getBoundingClientRect();
-    const offset = (rowRect.width * chatPct) / 100 - 5;
-    handle.style.left = Math.max(0, offset) + "px";
+    const chatRect = panels.chatCol.getBoundingClientRect();
+    if (rowRect.width <= 0) return;
+    const offset = chatRect.right - rowRect.left - 5;
+    handle.style.left = Math.max(0, Math.min(rowRect.width - 5, offset)) + "px";
     handle.style.height = rowRect.height + "px";
+  }}
+
+  function refreshLayout() {{
+    if (!panelsRef) return;
+    applyRatio(currentPct, panelsRef);
+    positionHandle(panelsRef, currentPct);
+  }}
+
+  let layoutObserver = null;
+  let refreshTimer = null;
+
+  function scheduleRefresh() {{
+    if (refreshTimer) window.cancelAnimationFrame(refreshTimer);
+    refreshTimer = window.requestAnimationFrame(function () {{
+      refreshTimer = null;
+      refreshLayout();
+    }});
+  }}
+
+  function bindLayoutObservers(panels) {{
+    if (layoutObserver) layoutObserver.disconnect();
+    layoutObserver = new ResizeObserver(scheduleRefresh);
+    layoutObserver.observe(panels.row);
+    layoutObserver.observe(panels.chatCol);
+    layoutObserver.observe(panels.editorCol);
+    const main = doc.querySelector("section.main");
+    if (main) layoutObserver.observe(main);
+    const appView = doc.querySelector('[data-testid="stAppViewContainer"]');
+    if (appView) layoutObserver.observe(appView);
+    const sidebar = doc.querySelector('[data-testid="stSidebar"]');
+    if (sidebar) layoutObserver.observe(sidebar);
+    const collapseBtn = doc.querySelector('[data-testid="stSidebarCollapseButton"]');
+    if (collapseBtn && !collapseBtn.dataset.caSplitBound) {{
+      collapseBtn.dataset.caSplitBound = "1";
+      collapseBtn.addEventListener("click", function () {{
+        window.setTimeout(scheduleRefresh, 60);
+        window.setTimeout(scheduleRefresh, 220);
+        window.setTimeout(scheduleRefresh, 420);
+      }});
+    }}
   }}
 
   function readStoredRatio() {{
@@ -719,6 +761,7 @@ def _split_pane_script(chat_w: int) -> str:
     handle.setAttribute("aria-label", "Resize panels");
     panels.row.appendChild(handle);
     positionHandle(panels, currentPct);
+    bindLayoutObservers(panels);
 
     handle.onpointerdown = function (e) {{
       e.preventDefault();
@@ -739,9 +782,10 @@ def _split_pane_script(chat_w: int) -> str:
       persistRatio(DEFAULT);
     }};
 
-    window.addEventListener("resize", function () {{
-      if (panelsRef) positionHandle(panelsRef, currentPct);
-    }});
+    if (!window.__caSplitResizeBound) {{
+      window.__caSplitResizeBound = true;
+      window.addEventListener("resize", scheduleRefresh);
+    }}
   }}
 
   if (document.readyState === "loading") {{
