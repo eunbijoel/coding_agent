@@ -283,64 +283,6 @@ def _inject_theme(theme: str) -> None:
     padding: 0.15rem 0 !important;
   }
   [data-testid="stSidebar"] [data-testid="stExpander"] { margin-bottom: 0.15rem !important; }
-  [data-testid="stSidebar"] .ca-fe-title { margin-bottom: 0 !important; }
-  [data-testid="stSidebar"] .ca-fe-root {
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 0.74rem;
-    color: var(--ca-muted);
-    margin: 0.15rem 0 0.25rem;
-  }
-  [data-testid="stSidebar"] .ca-fe-scroll {
-    max-height: calc(100vh - 22rem);
-    overflow-y: auto;
-    overflow-x: hidden;
-    margin-right: -0.2rem;
-    padding-right: 0.1rem;
-  }
-  [data-testid="stSidebar"] .ca-fe-row .stElementContainer {
-    margin-bottom: 0 !important;
-  }
-  [data-testid="stSidebar"] .ca-fe-row .stButton {
-    margin: 0 !important;
-  }
-  [data-testid="stSidebar"] .ca-fe-row .stButton > button {
-    width: 100% !important;
-    min-height: 1.35rem !important;
-    height: 1.35rem !important;
-    padding: 0 0.35rem !important;
-    margin: 0 !important;
-    font-family: "IBM Plex Mono", ui-monospace, monospace !important;
-    font-size: 0.76rem !important;
-    line-height: 1.2 !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    border: 1px solid transparent !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    color: var(--ca-text) !important;
-  }
-  [data-testid="stSidebar"] .ca-fe-row .stButton > button:hover {
-    background: var(--ca-hover) !important;
-    border-color: var(--ca-border) !important;
-  }
-  [data-testid="stSidebar"] .ca-fe-selected .stButton > button {
-    background: var(--ca-chip-bg) !important;
-    border-color: var(--ca-chip-border) !important;
-    color: var(--ca-accent) !important;
-  }
-  [data-testid="stSidebar"] .ca-fe-folder .stButton > button {
-    font-weight: 500 !important;
-  }
-  [data-testid="stSidebar"] .ca-fe-refresh .stButton > button {
-    min-width: 1.55rem !important;
-    min-height: 1.55rem !important;
-    padding: 0 0.25rem !important;
-    justify-content: center !important;
-    text-align: center !important;
-  }
 </style>
 """
     else:
@@ -518,64 +460,6 @@ def _inject_theme(theme: str) -> None:
     padding: 0.15rem 0 !important;
   }
   [data-testid="stSidebar"] [data-testid="stExpander"] { margin-bottom: 0.15rem !important; }
-  [data-testid="stSidebar"] .ca-fe-title { margin-bottom: 0 !important; }
-  [data-testid="stSidebar"] .ca-fe-root {
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 0.74rem;
-    color: var(--ca-muted);
-    margin: 0.15rem 0 0.25rem;
-  }
-  [data-testid="stSidebar"] .ca-fe-scroll {
-    max-height: calc(100vh - 22rem);
-    overflow-y: auto;
-    overflow-x: hidden;
-    margin-right: -0.2rem;
-    padding-right: 0.1rem;
-  }
-  [data-testid="stSidebar"] .ca-fe-row .stElementContainer {
-    margin-bottom: 0 !important;
-  }
-  [data-testid="stSidebar"] .ca-fe-row .stButton {
-    margin: 0 !important;
-  }
-  [data-testid="stSidebar"] .ca-fe-row .stButton > button {
-    width: 100% !important;
-    min-height: 1.35rem !important;
-    height: 1.35rem !important;
-    padding: 0 0.35rem !important;
-    margin: 0 !important;
-    font-family: "IBM Plex Mono", ui-monospace, monospace !important;
-    font-size: 0.76rem !important;
-    line-height: 1.2 !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    border: 1px solid transparent !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    color: var(--ca-text) !important;
-  }
-  [data-testid="stSidebar"] .ca-fe-row .stButton > button:hover {
-    background: var(--ca-hover) !important;
-    border-color: var(--ca-border) !important;
-  }
-  [data-testid="stSidebar"] .ca-fe-selected .stButton > button {
-    background: var(--ca-chip-bg) !important;
-    border-color: var(--ca-chip-border) !important;
-    color: var(--ca-accent) !important;
-  }
-  [data-testid="stSidebar"] .ca-fe-folder .stButton > button {
-    font-weight: 500 !important;
-  }
-  [data-testid="stSidebar"] .ca-fe-refresh .stButton > button {
-    min-width: 1.55rem !important;
-    min-height: 1.55rem !important;
-    padding: 0 0.25rem !important;
-    justify-content: center !important;
-    text-align: center !important;
-  }
 </style>
 """
     st.markdown(css, unsafe_allow_html=True)
@@ -660,8 +544,6 @@ def _init_state() -> None:
         st.session_state.terminal_interactive_warn = False
     if "main_chat_weight" not in st.session_state:
         st.session_state.main_chat_weight = MAIN_SPLIT_DEFAULT
-    if "file_explorer_expanded" not in st.session_state:
-        st.session_state.file_explorer_expanded = []
 
 
 def _sync_main_split_from_query() -> None:
@@ -1089,8 +971,6 @@ def _should_keep_trace(step: str | None) -> bool:
 def _sidebar_skip(name: str, path: Path) -> bool:
     if name.startswith(".") or name in IGNORE_DIR_NAMES:
         return True
-    if name == ".streamlit":
-        return True
     if "__pycache__" in path.parts:
         return True
     if path.is_file() and path.suffix.lower() in IGNORE_SUFFIXES:
@@ -1098,95 +978,27 @@ def _sidebar_skip(name: str, path: Path) -> bool:
     return False
 
 
-def _safe_workspace_path(workspace: Path, rel: str) -> Path | None:
-    root = workspace.resolve()
-    try:
-        target = (root / rel).resolve()
-        target.relative_to(root)
-    except (ValueError, OSError):
-        return None
-    return target
-
-
-def _file_icon(path: Path) -> str:
-    ext = path.suffix.lower()
-    if ext == ".py":
-        return "⌁"
-    if ext == ".md":
-        return "◈"
-    if ext in {".json", ".yaml", ".yml", ".toml"}:
-        return "▪"
-    if ext in {".html", ".htm", ".css", ".js", ".ts", ".tsx", ".jsx"}:
-        return "◉"
-    return "·"
-
-
-def _fe_indent(depth: int, text: str) -> str:
-    return f"{'\u2003' * depth}{text}"
-
-
-def _expanded_dirs() -> set[str]:
-    raw = st.session_state.file_explorer_expanded
-    return set(raw) if isinstance(raw, list) else set()
-
-
-def _set_expanded_dirs(expanded: set[str]) -> None:
-    st.session_state.file_explorer_expanded = sorted(expanded)
-
-
-def _expand_parent_dirs(rel: str) -> None:
-    if not rel:
-        return
-    parts = Path(rel).parts
-    if len(parts) <= 1:
-        return
-    expanded = _expanded_dirs()
-    for i in range(len(parts) - 1):
-        expanded.add(str(Path(*parts[: i + 1])))
-    _set_expanded_dirs(expanded)
-
-
-def _ensure_selected_parents_expanded() -> None:
-    rel = st.session_state.selected_file
-    if rel:
-        _expand_parent_dirs(rel)
-
-
-def _workspace_children(workspace: Path, rel_dir: str = "") -> list[Path]:
-    base = _safe_workspace_path(workspace, rel_dir) if rel_dir else workspace.resolve()
-    if base is None or not base.is_dir():
-        return []
-    try:
-        children = sorted(base.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
-    except OSError:
-        return []
-    out: list[Path] = []
-    root = workspace.resolve()
-    for child in children:
-        try:
-            child.resolve().relative_to(root)
-        except ValueError:
-            continue
-        if _sidebar_skip(child.name, child):
-            continue
-        out.append(child)
-    return out
-
-
 def _list_workspace_files(
     workspace: Path,
     rel_dir: str = "",
     depth: int = 0,
-    max_depth: int = 8,
+    max_depth: int = 4,
     counter: list[int] | None = None,
 ) -> list[str]:
     if counter is None:
         counter = [0]
-    if depth > max_depth or counter[0] >= 400:
+    if depth > max_depth or counter[0] >= 200:
+        return []
+    base = workspace / rel_dir if rel_dir else workspace
+    try:
+        children = sorted(base.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+    except OSError:
         return []
     out: list[str] = []
-    for child in _workspace_children(workspace, rel_dir):
-        rel = str(child.relative_to(workspace.resolve()))
+    for child in children:
+        if _sidebar_skip(child.name, child):
+            continue
+        rel = str(child.relative_to(workspace))
         if child.is_dir():
             out.extend(_list_workspace_files(workspace, rel, depth + 1, max_depth, counter))
         else:
@@ -1195,84 +1007,32 @@ def _list_workspace_files(
     return out
 
 
-def _refresh_file_explorer(workspace: Path) -> None:
-    files = set(_list_workspace_files(workspace))
-    sel = st.session_state.selected_file
-    if sel and sel not in files:
-        st.session_state.selected_file = None
-    st.rerun()
+def _format_file_pick(path: str) -> str:
+    if path == "—":
+        return "Select a file…"
+    return " › ".join(path.split("/"))
 
 
-def _select_workspace_file(rel: str) -> None:
-    st.session_state.selected_file = rel
-    st.session_state.editor_force_reload = True
-    _expand_parent_dirs(rel)
-    st.rerun()
-
-
-def _render_file_explorer_dir(workspace: Path, rel_dir: str, *, depth: int) -> bool:
-    root = workspace.resolve()
-    rendered = False
-    for child in _workspace_children(workspace, rel_dir):
-        rel = str(child.relative_to(root))
-        if child.is_dir():
-            expanded = rel in _expanded_dirs()
-            arrow = "▾" if expanded else "▸"
-            label = _fe_indent(depth, f"{arrow} {child.name}")
-            st.markdown('<div class="ca-fe-row ca-fe-folder">', unsafe_allow_html=True)
-            if st.button(
-                label,
-                key=f"fe-dir-{rel}",
-                help=rel,
-                use_container_width=True,
-            ):
-                expanded_set = _expanded_dirs()
-                if expanded:
-                    expanded_set.discard(rel)
-                else:
-                    expanded_set.add(rel)
-                _set_expanded_dirs(expanded_set)
-                st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
-            rendered = True
-            if expanded:
-                if _render_file_explorer_dir(workspace, rel, depth=depth + 1):
-                    rendered = True
-            continue
-
-        icon = _file_icon(child)
-        label = _fe_indent(depth, f"{icon} {child.name}")
-        selected = st.session_state.selected_file == rel
-        row_class = "ca-fe-row ca-fe-selected" if selected else "ca-fe-row"
-        st.markdown(f'<div class="{row_class}">', unsafe_allow_html=True)
-        if st.button(
-            label,
-            key=f"fe-file-{rel}",
-            help=rel,
-            use_container_width=True,
-        ):
-            _select_workspace_file(rel)
-        st.markdown("</div>", unsafe_allow_html=True)
-        rendered = True
-    return rendered
-
-
-def _render_file_explorer(workspace: Path) -> None:
-    _ensure_selected_parents_expanded()
-    head_left, head_right = st.columns([5, 1], gap="small")
-    with head_left:
-        st.markdown('<div class="ca-section ca-fe-title">Files</div>', unsafe_allow_html=True)
-    with head_right:
-        st.markdown('<div class="ca-fe-refresh">', unsafe_allow_html=True)
-        if st.button("↻", key="fe-refresh", help="Refresh file tree", use_container_width=True):
-            _refresh_file_explorer(workspace)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown('<div class="ca-fe-root">workspace</div>', unsafe_allow_html=True)
-    st.markdown('<div class="ca-fe-scroll">', unsafe_allow_html=True)
-    if not _render_file_explorer_dir(workspace, "", depth=0):
+def _render_file_picker(workspace: Path) -> None:
+    files = sorted(_list_workspace_files(workspace))
+    if not files:
         st.caption("Empty workspace")
-    st.markdown("</div>", unsafe_allow_html=True)
+        return
+    options = ["—"] + files
+    current = st.session_state.selected_file
+    idx = options.index(current) if current in options else 0
+    picked = st.selectbox(
+        "Open file",
+        options,
+        index=idx,
+        format_func=_format_file_pick,
+        label_visibility="collapsed",
+    )
+    if picked != "—" and picked != st.session_state.selected_file:
+        st.session_state.selected_file = picked
+        st.session_state.editor_force_reload = True
+        st.rerun()
+    st.caption(f"{len(files)} files")
 
 
 def _sidebar_settings(workspace: Path) -> None:
@@ -1429,7 +1189,8 @@ def _sidebar(workspace: Path) -> None:
             store.delete(st.session_state.thread_id)
             _go_new_chat()
 
-    _render_file_explorer(workspace)
+    st.markdown('<div class="ca-section">Files</div>', unsafe_allow_html=True)
+    _render_file_picker(workspace)
 
     _sidebar_settings(workspace)
 

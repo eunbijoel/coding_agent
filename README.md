@@ -91,14 +91,6 @@ Cursor 스타일 단일 에디터 레이아웃:
 | **Preview** | HTML/웹앱만 Header에서 전환 |
 | **Agent details** | 채팅 하단 expander — deepagents trace |
 
-### Sidebar File Explorer
-
-- **구현:** Streamlit 기본 `st.button` 기반 계층형 Explorer (외부 Tree component 없음)
-- **동작:** 폴더 `▸/▾` 클릭으로 펼치기/접기, 파일 클릭 시 `selected_file` + Editor 열기
-- **상태:** `file_explorer_expanded`에 펼친 폴더 유지, 선택 파일의 상위 폴더 자동 펼침
-- **숨김:** `IGNORE_DIR_NAMES`, `IGNORE_SUFFIXES`, dot-folder/file, workspace 밖 symlink
-- **제한:** 삭제/이름 변경/DnD/업로드/컨텍스트 메뉴/Git 상태는 미구현 (추후 단계)
-
 에이전트 실행은 `DeepAgentsBridge` → `create_cli_agent()` 그대로.
 
 ### Workbench 제한
