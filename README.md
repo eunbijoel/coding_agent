@@ -80,14 +80,18 @@ streamlit run app.py
 
 ## Workbench (오른쪽 패널)
 
+Cursor 스타일 단일 에디터 레이아웃:
 
-| 탭            | 기능                                                                                    |
-| ------------ | ------------------------------------------------------------------------------------- |
-| **Code**     | 파일 선택 후 `st.text_area`로 편집 · Save(확인 단계) · Reload · 미저장 표시                            |
-| **Diff**     | 에이전트/사용자 변경 diff · Verification 결과                                                    |
-| **Terminal** | 사용자 직접 명령 실행 (`workspace/` 고정, 확인 체크, Stop/History). **deepagents** `execute`**와 별도** |
-| **Preview**  | `.html` 인라인 렌더 · `.py` Streamlit/Flask/FastAPI 프로세스 미리보기 (포트·SSH 안내)                  |
-| **Trace**    | deepagents-code 활동 로그 (middleware 노이즈 필터)                                             |
+| 영역 | 설명 |
+|------|------|
+| **Header** | 파일명 · Modified · Changes / Preview / Save / ⋯ |
+| **Editor** | 기본 본문 (`text_area`, Markdown도 원문) |
+| **Changes** | diff 있을 때만 Header 버튼 → expander |
+| **Terminal** | 하단 접이식 — Run/Stop, History (agent shell과 별도) |
+| **Preview** | HTML/웹앱만 Header에서 전환 |
+| **Agent details** | 채팅 하단 expander — deepagents trace |
+
+에이전트 실행은 `DeepAgentsBridge` → `create_cli_agent()` 그대로.
 
 
 ## 참고

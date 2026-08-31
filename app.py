@@ -18,11 +18,11 @@ from coding_agent.threads import ThreadStore
 from coding_agent.tools import IGNORE_DIR_NAMES, IGNORE_SUFFIXES
 from coding_agent.workbench import (
     classify_file,
+    detect_preview_kind,
     poll_preview,
     poll_user_terminal,
     read_workspace_text,
     resolve_workspace_file,
-    run_user_command,
     start_preview_process,
     start_user_command_bg,
     stop_process,
@@ -399,6 +399,14 @@ def _init_state() -> None:
             "log": [],
             "exit_code": None,
         }
+    if "wb_show_diff" not in st.session_state:
+        st.session_state.wb_show_diff = False
+    if "wb_preview_mode" not in st.session_state:
+        st.session_state.wb_preview_mode = False
+    if "terminal_cmd_prefill" not in st.session_state:
+        st.session_state.terminal_cmd_prefill = ""
+    if "terminal_open" not in st.session_state:
+        st.session_state.terminal_open = False
 
 
 def _persist_messages() -> None:
@@ -454,6 +462,69 @@ def _render_tool_html(name: str, arguments: dict, result: str | None = None, ok:
         body += f"<pre>({flag}) {escape(result[:500])}</pre>"
     body += "</div>"
     return body
+
+
+def _compact_tool_label(name: str) -> str:
+    n = (name or "").lower()
+    if "read" in n:
+        return "Reading file"
+    if "write" in n or "edit" in n:
+        return "Editing file"
+    if "execute" in n or "shell" in n:
+        return "Running command"
+    return name or "tool"
+
+
+def _tool_path_hint(arguments: dict) -> str:
+    for key in ("path", "file_path", "file"):
+        val = arguments.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    return ""
+
+
+def _command_high_risk(command: str) -> bool:
+    low = (command or "").lower()
+    for token in ("rm ", "sudo", "kill", "pkill", "chmod", "mv ", "curl", "wget", "> /"):
+        if token in low:
+            return True
+    return False
+
+
+def _diff_for_file(rel: str | None) -> str | None:
+    if not rel:
+        return None
+    for ch in reversed(st.session_state.file_changes):
+        if ch.get("path") == rel and ch.get("diff"):
+            return ch["diff"]
+    return None
+
+
+def _change_file_count() -> int:
+    seen: set[str] = set()
+    for ch in st.session_state.file_changes:
+        p = ch.get("path")
+        if p and ch.get("diff"):
+            seen.add(p)
+    return len(seen)
+
+
+def _preview_eligible(workspace: Path, rel: str) -> str | None:
+    if rel.lower().endswith((".html", ".htm")):
+        return "html"
+    if not rel.lower().endswith(".py"):
+        return None
+    try:
+        path = resolve_workspace_file(workspace, rel)
+    except PermissionError:
+        return None
+    text, err = read_workspace_text(workspace, rel)
+    if err or text is None:
+        return None
+    kind = detect_preview_kind(path, text)
+    if kind in {"streamlit", "flask", "fastapi"}:
+        return "web"
+    return None
 
 
 def _should_keep_trace(step: str | None) -> bool:
@@ -745,19 +816,38 @@ def _render_chat_history() -> None:
         role = msg.get("role", "assistant")
         if role == "tool":
             with st.chat_message("assistant"):
-                st.markdown(
-                    _render_tool_html(
-                        msg.get("name", "tool"),
-                        msg.get("arguments") or {},
-                        msg.get("content"),
-                        msg.get("ok", True),
-                    ),
-                    unsafe_allow_html=True,
-                )
+                name = msg.get("name", "tool")
+                args = msg.get("arguments") or {}
+                ok = msg.get("ok", True)
+                path = _tool_path_hint(args)
+                label = _compact_tool_label(name)
+                status = "Completed" if ok else "Failed"
+                line = f"{label} — {status}"
+                if path:
+                    line = f"{label} · `{path}` — {status}"
+                st.caption(line)
         else:
             with st.chat_message(role):
                 st.markdown(msg.get("content") or "")
 
+
+def _agent_details_panel() -> None:
+    failed_tool = any(
+        m.get("role") == "tool" and not m.get("ok", True) for m in st.session_state.messages
+    )
+    failed_verify = bool(st.session_state.test_results) and not st.session_state.test_results[-1].get(
+        "ok", True
+    )
+    useful = [t for t in st.session_state.traces if _should_keep_trace(t.get("step"))]
+    expanded = failed_tool or failed_verify
+    with st.expander("Agent details", expanded=expanded):
+        if not useful:
+            st.caption("Detailed agent steps appear here during runs.")
+        else:
+            for tr in reversed(useful[-30:]):
+                step = tr.get("step") or "event"
+                detail = tr.get("detail") or ""
+                st.markdown(f"**{step}** — {detail}" if detail else f"**{step}**")
 
 def _sync_editor_buffer(workspace: Path) -> None:
     rel = st.session_state.selected_file
@@ -778,134 +868,200 @@ def _sync_editor_buffer(workspace: Path) -> None:
         st.session_state.editor_force_reload = False
 
 
-def _code_tab(workspace: Path) -> None:
-    rel = st.session_state.selected_file
-    if not rel:
-        st.markdown(
-            '<div class="ca-empty">Select a file, or let the agent edit one.</div>',
-            unsafe_allow_html=True,
-        )
+def _save_editor_file(workspace: Path, rel: str) -> None:
+    old = st.session_state.editor_disk
+    ok, err = write_workspace_text(workspace, rel, st.session_state.editor_draft)
+    if not ok:
+        st.error(err or "Save failed")
         return
+    diff = unified_diff(old, st.session_state.editor_draft, rel)
+    if diff.strip():
+        st.session_state.file_changes.append(
+            {"path": rel, "action": "user_edit", "diff": diff[:8000]}
+        )
+    st.session_state.editor_disk = st.session_state.editor_draft
+    st.session_state.editor_pending_save = False
+    st.rerun()
 
-    _sync_editor_buffer(workspace)
-    st.markdown(f'<span class="ca-file-chip">{escape(rel)}</span>', unsafe_allow_html=True)
 
+def _editor_header(workspace: Path, rel: str, *, dirty: bool, preview_kind: str | None) -> None:
+    left, right = st.columns([3, 2])
+    with left:
+        st.markdown(f"**{escape(Path(rel).name)}**")
+        status = "Modified · " if dirty else ""
+        st.caption(f"{status}{rel}")
+
+    actions: list[tuple[str, str]] = []
+    if _diff_for_file(rel) or _change_file_count() > 0:
+        actions.append(("changes", f"Changes {_change_file_count()}"))
+    if preview_kind and not st.session_state.wb_preview_mode:
+        actions.append(("preview", "Preview"))
+    elif preview_kind is None and rel.lower().endswith(".py"):
+        actions.append(("run_term", "Run in Terminal"))
+    actions.append(("save", "Save"))
+    actions.append(("more", "⋯"))
+
+    with right:
+        cols = st.columns(len(actions))
+        for col, (action, label) in zip(cols, actions):
+            with col:
+                if action == "changes" and st.button(label, key="wb-changes"):
+                    st.session_state.wb_show_diff = not st.session_state.wb_show_diff
+                    st.rerun()
+                elif action == "preview" and st.button(label, key="wb-preview"):
+                    st.session_state.wb_preview_mode = True
+                    st.rerun()
+                elif action == "run_term" and st.button(label, key="wb-run-term"):
+                    st.session_state.terminal_cmd_prefill = f"python3 {rel}"
+                    st.session_state.terminal_open = True
+                    st.rerun()
+                elif action == "save":
+                    if st.button(label, key="wb-save", type="primary", disabled=not dirty):
+                        st.session_state.editor_pending_save = True
+                elif action == "more":
+                    with st.popover(label):
+                        if st.button("Reload", key="wb-reload"):
+                            st.session_state.editor_force_reload = True
+                            st.session_state.editor_pending_save = False
+                            st.session_state.wb_preview_mode = False
+                            st.rerun()
+                        if st.button("Discard", key="wb-discard", disabled=not dirty):
+                            st.session_state.editor_draft = st.session_state.editor_disk
+                            st.session_state.editor_pending_save = False
+                            st.rerun()
+                        if preview_kind and st.session_state.wb_preview_mode:
+                            if st.button("Back to editor", key="wb-back-editor"):
+                                st.session_state.wb_preview_mode = False
+                                st.rerun()
+
+    if st.session_state.editor_pending_save:
+        c1, c2, c3 = st.columns([2, 1, 1])
+        c1.caption(f"Save `{Path(rel).name}`?")
+        if c2.button("Confirm", key="wb-save-yes", type="primary"):
+            _save_editor_file(workspace, rel)
+        if c3.button("Cancel", key="wb-save-no"):
+            st.session_state.editor_pending_save = False
+            st.rerun()
+
+
+def _editor_body(workspace: Path, rel: str) -> None:
     try:
         path = resolve_workspace_file(workspace, rel)
     except PermissionError as exc:
         st.error(str(exc))
         return
-
     kind = classify_file(path)
     if kind == "binary":
-        st.info("Binary file — editing is not supported in the workbench.")
+        st.info("Binary file — editing is not supported.")
         return
     if kind == "missing":
-        st.warning("File not found on disk.")
+        st.warning("File not found.")
         return
-
-    dirty = st.session_state.editor_draft != st.session_state.editor_disk
-    if dirty:
-        st.caption("● Unsaved changes")
-
     draft = st.text_area(
         "Editor",
         value=st.session_state.editor_draft,
-        height=420,
+        height=360,
         key=f"editor-area-{rel}",
         label_visibility="collapsed",
     )
     st.session_state.editor_draft = draft
 
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        if st.button("Reload", use_container_width=True):
-            st.session_state.editor_force_reload = True
-            st.session_state.editor_pending_save = False
-            st.rerun()
-    with c2:
-        save_clicked = st.button(
-            "Save",
-            use_container_width=True,
-            type="primary",
-            disabled=not dirty,
-        )
-    with c3:
-        if st.button("Discard", use_container_width=True, disabled=not dirty):
-            st.session_state.editor_draft = st.session_state.editor_disk
-            st.session_state.editor_pending_save = False
-            st.rerun()
 
-    if save_clicked:
-        st.session_state.editor_pending_save = True
+def _diff_panel(workspace: Path, rel: str) -> None:
+    diff = _diff_for_file(rel)
+    if diff:
+        st.code(diff, language="diff")
 
-    if st.session_state.editor_pending_save:
-        st.warning(f"Save changes to `{rel}`? This overwrites the file on disk.")
-        y, n = st.columns(2)
-        with y:
-            if st.button("Confirm save", type="primary", use_container_width=True):
-                old = st.session_state.editor_disk
-                ok, err = write_workspace_text(workspace, rel, st.session_state.editor_draft)
-                if not ok:
-                    st.error(err or "Save failed")
-                else:
-                    diff = unified_diff(old, st.session_state.editor_draft, rel)
-                    if diff.strip():
-                        st.session_state.file_changes.append(
-                            {"path": rel, "action": "user_edit", "diff": diff[:8000]}
-                        )
-                    st.session_state.editor_disk = st.session_state.editor_draft
-                    st.session_state.editor_pending_save = False
-                    st.success("Saved")
+    if _change_file_count() > 1:
+        with st.expander("All changes", expanded=False):
+            seen: set[str] = set()
+            for ch in reversed(st.session_state.file_changes):
+                p = ch.get("path")
+                if not p or p in seen or not ch.get("diff"):
+                    continue
+                seen.add(p)
+                if st.button(f"{ch.get('action', 'modify')}: {p}", key=f"diff-jump-{p}"):
+                    st.session_state.selected_file = p
+                    st.session_state.editor_force_reload = True
                     st.rerun()
-        with n:
-            if st.button("Cancel save", use_container_width=True):
-                st.session_state.editor_pending_save = False
-                st.rerun()
-
-
-def _diff_tab(workspace: Path) -> None:
-    rel = st.session_state.selected_file
-    if rel:
-        st.markdown(f'<span class="ca-file-chip">{escape(rel)}</span>', unsafe_allow_html=True)
-        diff = None
-        action = None
-        for ch in reversed(st.session_state.file_changes):
-            if ch.get("path") == rel and ch.get("diff"):
-                diff = ch["diff"]
-                action = ch.get("action")
-                break
-        if diff:
-            st.caption(f"Latest change ({action or 'modify'})")
-            st.code(diff, language="diff")
-        else:
-            st.caption("No diff recorded for this file yet.")
-
-    if st.session_state.file_changes:
-        st.markdown('<div class="ca-section">All changes</div>', unsafe_allow_html=True)
-        seen: set[str] = set()
-        for ch in reversed(st.session_state.file_changes):
-            p = ch.get("path")
-            if not p or p in seen:
-                continue
-            seen.add(p)
-            label = f"{ch.get('action', 'modify')}: {p}"
-            if st.button(label, key=f"diff-jump-{p}", use_container_width=True):
-                st.session_state.selected_file = p
-                st.session_state.editor_force_reload = True
-                st.rerun()
 
     if st.session_state.test_results:
         latest = st.session_state.test_results[-1]
-        st.markdown('<div class="ca-section">Verification</div>', unsafe_allow_html=True)
-        flag = "ok" if latest.get("ok") else "failed"
-        st.caption(f"Latest run: {flag}")
-        st.code(latest.get("details") or latest.get("summary") or "")
+        if latest.get("ok"):
+            st.caption("Verification ok")
+        else:
+            with st.expander("Verification failed", expanded=True):
+                st.code(latest.get("details") or latest.get("summary") or "")
 
 
-def _terminal_tab(workspace: Path) -> None:
-    st.caption("User terminal (workspace/). Separate from deepagents-code agent shell.")
+def _preview_body(workspace: Path, rel: str, preview_kind: str) -> None:
+    state = poll_preview(dict(st.session_state.preview_state))
+    st.session_state.preview_state = state
 
+    if preview_kind == "html":
+        text, err = read_workspace_text(workspace, rel)
+        if err:
+            st.warning(err)
+            return
+        st.components.v1.html(text or "", height=420, scrolling=True)
+        if st.button("Back to editor", key="wb-html-back"):
+            st.session_state.wb_preview_mode = False
+            st.rerun()
+        return
+
+    proc = state.get("proc")
+    if proc is None and preview_kind == "web":
+        result = start_preview_process(workspace, rel)
+        if not result.get("ok"):
+            st.error(result.get("error") or "Preview failed to start")
+            return
+        st.session_state.preview_state = {
+            "running": True,
+            "kind": result.get("kind"),
+            "target": rel,
+            "port": result.get("port"),
+            "pid": result.get("pid"),
+            "proc": result.get("proc"),
+            "log": result.get("log") or [],
+            "exit_code": None,
+        }
+        st.rerun()
+
+    if proc is not None and state.get("running", True):
+        port = state.get("port")
+        st.caption(f"Preview running · port {port}" if port else "Preview running")
+        if port:
+            st.link_button("Open preview", f"http://127.0.0.1:{port}")
+        log = "".join(state.get("log") or [])
+        if log and (state.get("exit_code") not in (None, 0) or "error" in log.lower()):
+            st.code(log[-4000:])
+        if st.button("Stop Preview", type="primary", key="wb-stop-preview"):
+            stop_process(proc)
+            st.session_state.preview_state = {
+                "running": False,
+                "kind": "",
+                "target": "",
+                "port": None,
+                "pid": None,
+                "proc": None,
+                "log": state.get("log") or [],
+                "exit_code": None,
+            }
+            st.session_state.wb_preview_mode = False
+            st.rerun()
+        with st.expander("Connection details", expanded=False):
+            st.caption(f"Port {port} · PID {state.get('pid')}")
+            if port:
+                st.code(f"ssh -L {port}:127.0.0.1:{port} user@host")
+        return
+
+    st.caption("Preview stopped.")
+    if st.button("Back to editor", key="wb-preview-back"):
+        st.session_state.wb_preview_mode = False
+        st.rerun()
+
+
+def _terminal_panel(workspace: Path) -> None:
     proc = st.session_state.terminal_proc
     if proc is not None:
         chunk, running, code = poll_user_terminal(proc)
@@ -926,10 +1082,10 @@ def _terminal_tab(workspace: Path) -> None:
             st.rerun()
 
     if st.session_state.terminal_proc is not None:
-        st.info(f"Running: `{st.session_state.terminal_running_cmd}`")
+        st.caption("Running…")
         if st.session_state.terminal_output_buf:
             st.code(st.session_state.terminal_output_buf[-8000:])
-        if st.button("Stop", type="primary"):
+        if st.button("Stop", type="primary", key="term-stop"):
             stop_user_terminal(st.session_state.terminal_proc)
             st.session_state.terminal_history.append(
                 {
@@ -945,9 +1101,23 @@ def _terminal_tab(workspace: Path) -> None:
             st.rerun()
         return
 
-    cmd = st.text_input("Command", placeholder="python calculator.py", key="user-terminal-cmd")
-    confirm = st.checkbox("I confirm this command is safe to run in the workspace", key="user-terminal-confirm")
-    if st.button("Run", type="primary", disabled=not confirm or not (cmd or "").strip()):
+    prefill = st.session_state.get("terminal_cmd_prefill") or ""
+    if prefill:
+        st.session_state["user-terminal-cmd"] = prefill
+        st.session_state.terminal_cmd_prefill = ""
+        st.session_state.terminal_open = True
+    cmd = st.text_input(
+        "Command",
+        placeholder="python3 calculator.py",
+        key="user-terminal-cmd",
+        label_visibility="collapsed",
+    )
+    high_risk = _command_high_risk(cmd)
+    if high_risk:
+        st.checkbox("Confirm potentially destructive command", key="terminal_danger_ack")
+
+    run_disabled = not (cmd or "").strip() or (high_risk and not st.session_state.get("terminal_danger_ack"))
+    if st.button("Run", type="primary", key="term-run", disabled=run_disabled):
         ok, msg = validate_user_command(cmd)
         if not ok:
             st.error(msg)
@@ -961,132 +1131,49 @@ def _terminal_tab(workspace: Path) -> None:
                 st.session_state.terminal_output_buf = ""
                 st.rerun()
 
-    st.markdown('<div class="ca-section">Quick run (blocking)</div>', unsafe_allow_html=True)
-    qcmd = st.text_input("Blocking command", placeholder="python calculator.py", key="user-terminal-quick")
-    qconfirm = st.checkbox("Confirm blocking run", key="user-terminal-qconfirm")
-    if st.button("Run (wait)", disabled=not qconfirm or not (qcmd or "").strip()):
-        result = run_user_command(workspace, qcmd)
-        st.session_state.terminal_history.append(
-            {
-                "command": qcmd,
-                "stdout": result.get("stdout", ""),
-                "stderr": result.get("stderr", "") or result.get("error", ""),
-                "exit_code": result.get("exit_code", -1),
-            }
-        )
-        st.rerun()
-
     if st.session_state.terminal_history:
-        st.markdown('<div class="ca-section">History</div>', unsafe_allow_html=True)
-        for i, row in enumerate(reversed(st.session_state.terminal_history[-12:]), 1):
-            code = row.get("exit_code")
-            st.markdown(f"**$ {row.get('command')}** · exit `{code}`")
-            out = (row.get("stdout") or "") + (row.get("stderr") or "")
-            if out.strip():
-                st.code(out[-4000:])
-
-
-def _preview_tab(workspace: Path) -> None:
-    files = sorted(_list_workspace_files(workspace))
-    previewable = [f for f in files if Path(f).suffix.lower() in {".html", ".htm", ".py"}]
-    if not previewable:
-        st.caption("No .html or .py files to preview.")
-        return
-
-    state = poll_preview(dict(st.session_state.preview_state))
-    st.session_state.preview_state = state
-
-    if state.get("proc") is not None and state.get("running", True):
-        port = state.get("port")
-        st.info(
-            f"Preview running · {state.get('kind')} · port {port} · pid {state.get('pid')}"
-        )
-        if port:
-            st.markdown(f"**URL:** `http://127.0.0.1:{port}`")
-            st.caption(
-                f"Remote SSH: `ssh -L {port}:127.0.0.1:{port} user@host` then open the URL locally."
-            )
-        log = "".join(state.get("log") or [])
-        if log:
-            st.code(log[-6000:])
-        if st.button("Stop Preview", type="primary"):
-            stop_process(state.get("proc"))
-            st.session_state.preview_state = {
-                "running": False,
-                "kind": "",
-                "target": "",
-                "port": None,
-                "pid": None,
-                "proc": None,
-                "log": state.get("log") or [],
-                "exit_code": None,
-            }
-            st.rerun()
-        return
-
-    current = state.get("target") if state.get("target") in previewable else previewable[0]
-    target = st.selectbox("Preview file", previewable, index=previewable.index(current))
-    port_in = st.number_input("Port (0 = auto)", min_value=0, max_value=65535, value=0, step=1)
-
-    text, err = read_workspace_text(workspace, target)
-    if err and not target.endswith((".html", ".htm")):
-        st.warning(err)
-        return
-
-    is_html = target.lower().endswith((".html", ".htm"))
-
-    if is_html:
-        if st.button("Refresh HTML", use_container_width=True):
-            st.components.v1.html(text or "", height=480, scrolling=True)
-        else:
-            st.caption("HTML preview renders inline (no server process).")
-        return
-
-    if st.button("Start Preview", type="primary", use_container_width=True):
-        result = start_preview_process(
-            workspace,
-            target,
-            port=int(port_in) if port_in else None,
-        )
-        if not result.get("ok"):
-            st.error(result.get("error") or "Preview failed to start")
-        else:
-            st.session_state.preview_state = {
-                "running": True,
-                "kind": result.get("kind"),
-                "target": target,
-                "port": result.get("port"),
-                "pid": result.get("pid"),
-                "proc": result.get("proc"),
-                "log": result.get("log") or [],
-                "exit_code": None,
-            }
-            st.rerun()
-
-
-def _trace_tab() -> None:
-    useful = [t for t in st.session_state.traces if _should_keep_trace(t.get("step"))]
-    if not useful:
-        st.caption("No deepagents-code activity yet.")
-        return
-    for tr in reversed(useful[-30:]):
-        step = tr.get("step") or "event"
-        detail = tr.get("detail") or ""
-        st.markdown(f"**{step}** — {detail}" if detail else f"**{step}**")
+        with st.expander("History", expanded=False):
+            for row in reversed(st.session_state.terminal_history[-12:]):
+                code = row.get("exit_code")
+                st.markdown(f"`$ {row.get('command')}` · exit {code}")
+                out = (row.get("stdout") or "") + (row.get("stderr") or "")
+                if out.strip():
+                    st.code(out[-3000:])
 
 
 def _workbench_panel(workspace: Path) -> None:
-    tabs = st.tabs(["Code", "Diff", "Terminal", "Preview", "Trace"])
-    with tabs[0]:
-        _code_tab(workspace)
-    with tabs[1]:
-        _diff_tab(workspace)
-    with tabs[2]:
-        _terminal_tab(workspace)
-    with tabs[3]:
-        _preview_tab(workspace)
-    with tabs[4]:
-        _trace_tab()
+    rel = st.session_state.selected_file
+    term_open = bool(st.session_state.terminal_proc) or bool(st.session_state.terminal_open)
+
+    if not rel:
+        st.markdown(
+            '<div class="ca-empty">Select a file from the sidebar.</div>',
+            unsafe_allow_html=True,
+        )
+        with st.expander("Terminal", expanded=term_open):
+            _terminal_panel(workspace)
+        return
+
+    _sync_editor_buffer(workspace)
+    dirty = st.session_state.editor_draft != st.session_state.editor_disk
+    preview_kind = _preview_eligible(workspace, rel)
+
+    if preview_kind is None:
+        st.session_state.wb_preview_mode = False
+
+    _editor_header(workspace, rel, dirty=dirty, preview_kind=preview_kind)
+
+    if st.session_state.wb_preview_mode and preview_kind:
+        _preview_body(workspace, rel, preview_kind)
+    else:
+        _editor_body(workspace, rel)
+
+    if st.session_state.wb_show_diff and (_diff_for_file(rel) or _change_file_count() > 0):
+        with st.expander("Changes", expanded=True):
+            _diff_panel(workspace, rel)
+
+    with st.expander("Terminal", expanded=term_open):
+        _terminal_panel(workspace)
 
 
 def main() -> None:
@@ -1117,6 +1204,7 @@ def main() -> None:
                     unsafe_allow_html=True,
                 )
             _render_chat_history()
+            _agent_details_panel()
 
         blocked = st.session_state.pending_interrupt is not None
         prompt = None
