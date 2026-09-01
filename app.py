@@ -257,23 +257,6 @@ def _inject_theme(theme: str) -> None:
     touch-action: none;
     user-select: none;
   }
-  #ca-split-drag-handle::after {
-    content: "";
-    position: absolute;
-    left: 4px;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background: var(--ca-border);
-    pointer-events: none;
-    transition: background 0.15s ease;
-  }
-  #ca-split-drag-handle:hover::after,
-  #ca-split-drag-handle.ca-split-dragging::after {
-    width: 3px;
-    left: 3px;
-    background: var(--ca-accent);
-  }
   [data-testid="stSidebar"] .streamlit-expanderHeader {
     font-family: "IBM Plex Mono", ui-monospace, monospace !important;
     font-size: 0.76rem !important;
@@ -426,23 +409,6 @@ def _inject_theme(theme: str) -> None:
     background: transparent;
     touch-action: none;
     user-select: none;
-  }
-  #ca-split-drag-handle::after {
-    content: "";
-    position: absolute;
-    left: 4px;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background: var(--ca-border);
-    pointer-events: none;
-    transition: background 0.15s ease;
-  }
-  #ca-split-drag-handle:hover::after,
-  #ca-split-drag-handle.ca-split-dragging::after {
-    width: 3px;
-    left: 3px;
-    background: var(--ca-accent);
   }
   [data-testid="stSidebar"] .streamlit-expanderHeader {
     font-family: "IBM Plex Mono", ui-monospace, monospace !important;
