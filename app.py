@@ -71,6 +71,7 @@ def _inject_theme(theme: str) -> None:
     --ca-chip-border: #2a3340;
     --ca-input-bg: #121820;
     --ca-hover: #1c2430;
+    --ca-term-bg: #0d1117;
   }
   html, body, [class*="css"] {
     font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
@@ -257,6 +258,67 @@ def _inject_theme(theme: str) -> None:
     touch-action: none;
     user-select: none;
   }
+  .ca-term-header-title {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ca-muted) !important;
+    margin: 0;
+  }
+  .ca-term-scroll {
+    max-height: 280px;
+    overflow-y: auto;
+    overflow-x: auto;
+    background: var(--ca-term-bg);
+    border: 1px solid var(--ca-border);
+    border-radius: 6px;
+    padding: 0.55rem 0.65rem;
+    margin-bottom: 0.45rem;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--ca-text);
+    user-select: text;
+  }
+  .ca-term-entry { margin-bottom: 0.65rem; }
+  .ca-term-entry:last-child { margin-bottom: 0; }
+  .ca-term-prompt { color: var(--ca-accent) !important; }
+  .ca-term-cmd { color: var(--ca-text) !important; }
+  .ca-term-out,
+  .ca-term-err,
+  .ca-term-running {
+    margin: 0.15rem 0 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--ca-text) !important;
+  }
+  .ca-term-err { color: #f85149 !important; }
+  .ca-term-running { color: var(--ca-muted) !important; font-style: italic; }
+  .ca-term-status {
+    margin-top: 0.2rem;
+    color: #f85149 !important;
+    font-size: 0.74rem;
+  }
+  .ca-term-prompt-inline {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    color: var(--ca-accent) !important;
+    white-space: nowrap;
+    padding-top: 0.45rem;
+  }
+  [data-testid="stForm"]:has(#ca-term-form-marker) {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    border: none !important;
+  }
   [data-testid="stSidebar"] .streamlit-expanderHeader {
     font-family: "IBM Plex Mono", ui-monospace, monospace !important;
     font-size: 0.76rem !important;
@@ -280,6 +342,7 @@ def _inject_theme(theme: str) -> None:
     --ca-text: #1f2328;
     --ca-muted: #656d76;
     --ca-tool: #f6f8fa;
+    --ca-term-bg: #f6f8fa;
   }
   html, body, [class*="css"] {
     font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
@@ -409,6 +472,67 @@ def _inject_theme(theme: str) -> None:
     background: transparent;
     touch-action: none;
     user-select: none;
+  }
+  .ca-term-header-title {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ca-muted) !important;
+    margin: 0;
+  }
+  .ca-term-scroll {
+    max-height: 280px;
+    overflow-y: auto;
+    overflow-x: auto;
+    background: var(--ca-term-bg);
+    border: 1px solid var(--ca-border);
+    border-radius: 6px;
+    padding: 0.55rem 0.65rem;
+    margin-bottom: 0.45rem;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--ca-text);
+    user-select: text;
+  }
+  .ca-term-entry { margin-bottom: 0.65rem; }
+  .ca-term-entry:last-child { margin-bottom: 0; }
+  .ca-term-prompt { color: var(--ca-accent) !important; }
+  .ca-term-cmd { color: var(--ca-text) !important; }
+  .ca-term-out,
+  .ca-term-err,
+  .ca-term-running {
+    margin: 0.15rem 0 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--ca-text) !important;
+  }
+  .ca-term-err { color: #f85149 !important; }
+  .ca-term-running { color: var(--ca-muted) !important; font-style: italic; }
+  .ca-term-status {
+    margin-top: 0.2rem;
+    color: #f85149 !important;
+    font-size: 0.74rem;
+  }
+  .ca-term-prompt-inline {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    color: var(--ca-accent) !important;
+    white-space: nowrap;
+    padding-top: 0.45rem;
+  }
+  [data-testid="stForm"]:has(#ca-term-form-marker) {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    border: none !important;
   }
   [data-testid="stSidebar"] .streamlit-expanderHeader {
     font-family: "IBM Plex Mono", ui-monospace, monospace !important;
@@ -916,6 +1040,227 @@ def _trigger_header_run(workspace: Path, rel: str) -> None:
     else:
         st.session_state.terminal_auto_run = cmd
     st.rerun()
+
+
+TERM_PROMPT = "workspace $ "
+
+
+def _term_status_message(exit_code: int | None, stderr: str) -> str | None:
+    if stderr == "(stopped by user)":
+        return "Process stopped by user"
+    if exit_code is None or exit_code == 0:
+        return None
+    if exit_code == -1:
+        return "Process stopped by user"
+    return f"Process exited with code {exit_code}"
+
+
+def _term_entry_html(
+    command: str,
+    stdout: str = "",
+    stderr: str = "",
+    exit_code: int | None = None,
+    *,
+    running: bool = False,
+) -> str:
+    parts = [
+        '<div class="ca-term-entry">',
+        '<div class="ca-term-line">',
+        f'<span class="ca-term-prompt">{escape(TERM_PROMPT)}</span>',
+        f'<span class="ca-term-cmd">{escape(command)}</span>',
+        "</div>",
+    ]
+    out = (stdout or "").rstrip()
+    if out:
+        parts.append(f'<pre class="ca-term-out">{escape(out)}</pre>')
+    err = (stderr or "").rstrip()
+    if err and err != "(stopped by user)":
+        parts.append(f'<pre class="ca-term-err">{escape(err)}</pre>')
+    if running and not out:
+        parts.append('<div class="ca-term-running">Running…</div>')
+    status = _term_status_message(exit_code, err)
+    if status:
+        parts.append(f'<div class="ca-term-status">{escape(status)}</div>')
+    parts.append("</div>")
+    return "".join(parts)
+
+
+def _term_transcript_html(
+    *,
+    running_cmd: str | None = None,
+    running_out: str = "",
+    is_running: bool = False,
+) -> str:
+    entries: list[str] = []
+    for row in st.session_state.terminal_history:
+        entries.append(
+            _term_entry_html(
+                row.get("command") or "",
+                row.get("stdout") or "",
+                row.get("stderr") or "",
+                row.get("exit_code"),
+            )
+        )
+    if running_cmd:
+        entries.append(
+            _term_entry_html(
+                running_cmd,
+                running_out,
+                exit_code=None,
+                running=is_running and not (running_out or "").strip(),
+            )
+        )
+    body = "".join(entries)
+    return f'<div class="ca-term-scroll"><div class="ca-term-transcript">{body}</div></div>'
+
+
+def _term_append_history(
+    command: str,
+    stdout: str,
+    *,
+    stderr: str = "",
+    exit_code: int | None = 0,
+) -> None:
+    st.session_state.terminal_history.append(
+        {
+            "command": command,
+            "stdout": stdout,
+            "stderr": stderr,
+            "exit_code": exit_code,
+        }
+    )
+
+
+def _term_render_transcript(
+    *,
+    running_cmd: str | None = None,
+    running_out: str = "",
+    is_running: bool = False,
+) -> None:
+    html = _term_transcript_html(
+        running_cmd=running_cmd,
+        running_out=running_out,
+        is_running=is_running,
+    )
+    if html:
+        st.markdown(html, unsafe_allow_html=True)
+
+
+def _term_header() -> None:
+    left, right = st.columns([5, 1], gap="small", vertical_alignment="center")
+    with left:
+        st.markdown('<p class="ca-term-header-title">Terminal</p>', unsafe_allow_html=True)
+    with right:
+        if st.button(
+            "Clear",
+            key="term-clear",
+            help="Clear transcript only. Does not stop a running command.",
+            type="tertiary",
+        ):
+            st.session_state.terminal_history = []
+            st.rerun()
+
+
+def _term_finish_running(*, stopped: bool = False, exit_code: int | None = None) -> None:
+    stderr = "(stopped by user)" if stopped else ""
+    code = -1 if stopped else exit_code
+    _term_append_history(
+        st.session_state.terminal_running_cmd,
+        st.session_state.terminal_output_buf,
+        stderr=stderr,
+        exit_code=code,
+    )
+    st.session_state.terminal_proc = None
+    st.session_state.terminal_running_cmd = ""
+    st.session_state.terminal_output_buf = ""
+
+
+def _term_poll_running_proc() -> None:
+    proc = st.session_state.terminal_proc
+    if proc is None:
+        return
+    chunk, running, code = poll_user_terminal(proc)
+    if chunk:
+        st.session_state.terminal_output_buf += chunk
+    if not running:
+        _term_finish_running(exit_code=code)
+        st.rerun()
+
+
+@st.fragment(run_every=1)
+def _terminal_running_fragment(workspace: Path) -> None:
+    _term_poll_running_proc()
+    if st.session_state.terminal_interactive_warn:
+        st.warning("Interactive input is not supported in this terminal MVP.")
+        st.session_state.terminal_interactive_warn = False
+
+    _term_header()
+    _term_render_transcript(
+        running_cmd=st.session_state.terminal_running_cmd,
+        running_out=st.session_state.terminal_output_buf,
+        is_running=True,
+    )
+    if st.button("Stop", type="primary", key="term-stop"):
+        stop_user_terminal(st.session_state.terminal_proc)
+        _term_finish_running(stopped=True)
+        st.rerun()
+
+
+def _terminal_input_form(workspace: Path) -> None:
+    draft_cmd = (st.session_state.get("user-terminal-cmd") or "").strip()
+    high_risk = bool(draft_cmd) and _command_high_risk(draft_cmd)
+    if high_risk:
+        st.checkbox(
+            "Confirm potentially destructive command",
+            key="terminal_danger_ack",
+            help="Required before running commands that may delete or overwrite files.",
+        )
+
+    with st.form("term-cmd-form", clear_on_submit=True, enter_to_submit=True):
+        st.markdown('<span id="ca-term-form-marker" hidden></span>', unsafe_allow_html=True)
+        prompt_col, input_col, btn_col = st.columns([1.1, 5, 0.8], gap="small", vertical_alignment="bottom")
+        with prompt_col:
+            st.markdown('<div class="ca-term-prompt-inline">workspace $</div>', unsafe_allow_html=True)
+        with input_col:
+            cmd = st.text_input(
+                "Command",
+                placeholder="Type a command…",
+                key="user-terminal-cmd",
+                label_visibility="collapsed",
+            )
+        with btn_col:
+            submitted = st.form_submit_button("Run", use_container_width=True)
+
+    if not submitted:
+        return
+    cmd = (cmd or "").strip()
+    if not cmd:
+        return
+    if _command_high_risk(cmd) and not st.session_state.get("terminal_danger_ack"):
+        st.warning("Confirm the destructive command checkbox before running.")
+        return
+    if _start_terminal_command(workspace, cmd):
+        st.rerun()
+
+
+def _terminal_panel(workspace: Path) -> None:
+    auto_cmd = st.session_state.terminal_auto_run
+    if auto_cmd and st.session_state.terminal_proc is None:
+        st.session_state.terminal_auto_run = None
+        if _start_terminal_command(workspace, auto_cmd):
+            st.rerun()
+
+    if st.session_state.terminal_proc is not None:
+        _terminal_running_fragment(workspace)
+        return
+
+    if st.session_state.terminal_interactive_warn:
+        st.warning("Interactive input is not supported in this terminal MVP.")
+        st.session_state.terminal_interactive_warn = False
+
+    _term_header()
+    _term_render_transcript()
+    _terminal_input_form(workspace)
 
 
 def _should_keep_trace(step: str | None) -> bool:
@@ -1691,83 +2036,6 @@ def _preview_body(workspace: Path, rel: str, preview_kind: str) -> None:
     if st.button("Back to editor", key="wb-preview-back"):
         st.session_state.wb_preview_mode = False
         st.rerun()
-
-
-def _terminal_panel(workspace: Path) -> None:
-    if st.session_state.terminal_interactive_warn:
-        st.warning("Interactive input is not supported in this terminal MVP.")
-        st.session_state.terminal_interactive_warn = False
-
-    auto_cmd = st.session_state.terminal_auto_run
-    if auto_cmd and st.session_state.terminal_proc is None:
-        st.session_state.terminal_auto_run = None
-        if _start_terminal_command(workspace, auto_cmd):
-            st.rerun()
-
-    proc = st.session_state.terminal_proc
-    if proc is not None:
-        chunk, running, code = poll_user_terminal(proc)
-        if chunk:
-            st.session_state.terminal_output_buf += chunk
-        if not running:
-            st.session_state.terminal_history.append(
-                {
-                    "command": st.session_state.terminal_running_cmd,
-                    "stdout": st.session_state.terminal_output_buf,
-                    "stderr": "",
-                    "exit_code": code,
-                }
-            )
-            st.session_state.terminal_proc = None
-            st.session_state.terminal_running_cmd = ""
-            st.session_state.terminal_output_buf = ""
-            st.rerun()
-
-    if st.session_state.terminal_proc is not None:
-        if st.session_state.terminal_output_buf:
-            st.code(st.session_state.terminal_output_buf[-8000:])
-        if st.button("Stop", type="primary", key="term-stop"):
-            stop_user_terminal(st.session_state.terminal_proc)
-            st.session_state.terminal_history.append(
-                {
-                    "command": st.session_state.terminal_running_cmd,
-                    "stdout": st.session_state.terminal_output_buf,
-                    "stderr": "(stopped by user)",
-                    "exit_code": -1,
-                }
-            )
-            st.session_state.terminal_proc = None
-            st.session_state.terminal_running_cmd = ""
-            st.session_state.terminal_output_buf = ""
-            st.rerun()
-        return
-
-    cmd = st.text_input(
-        "Command",
-        placeholder="python3 calculator.py",
-        key="user-terminal-cmd",
-        label_visibility="collapsed",
-    )
-    if not (cmd or "").strip() and not st.session_state.terminal_history:
-        st.caption("Enter a command, or use ▶ Run in the header.")
-
-    high_risk = _command_high_risk(cmd)
-    if high_risk and (cmd or "").strip():
-        st.checkbox("Confirm potentially destructive command", key="terminal_danger_ack")
-
-    run_disabled = not (cmd or "").strip() or (high_risk and not st.session_state.get("terminal_danger_ack"))
-    if st.button("Run", type="primary", key="term-run", disabled=run_disabled):
-        if _start_terminal_command(workspace, cmd):
-            st.rerun()
-
-    if st.session_state.terminal_history:
-        with st.expander("History", expanded=False):
-            for row in reversed(st.session_state.terminal_history[-12:]):
-                code = row.get("exit_code")
-                st.markdown(f"`$ {row.get('command')}` · exit {code}")
-                out = (row.get("stdout") or "") + (row.get("stderr") or "")
-                if out.strip():
-                    st.code(out[-3000:])
 
 
 def _workbench_panel(workspace: Path) -> None:
