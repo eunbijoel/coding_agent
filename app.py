@@ -14,11 +14,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from coding_agent.bridge import DeepAgentsBridge, deepagents_version
-from coding_agent.config import DATA_DIR, MODEL_NAME, resolve_workspace
+from coding_agent.config import DATA_DIR, IGNORE_DIR_NAMES, IGNORE_SUFFIXES, MODEL_NAME, resolve_workspace
 from coding_agent.ollama_client import available as ollama_available
 from coding_agent.ollama_client import list_models
 from coding_agent.threads import ThreadStore
-from coding_agent.tools import IGNORE_DIR_NAMES, IGNORE_SUFFIXES
 from coding_agent.workbench import (
     classify_file,
     detect_preview_kind,
@@ -177,12 +176,6 @@ def _inject_theme(theme: str) -> None:
   }
   .ca-tool .name { color: #7dcea0 !important; font-weight: 500; }
   .ca-tool pre { white-space: pre-wrap; margin: 0.35rem 0 0; color: var(--ca-muted) !important; font-size: 0.74rem; }
-  .ca-file-chip {
-    display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 0.78rem; color: #9ecbff !important;
-    background: var(--ca-chip-bg); border: 1px solid var(--ca-chip-border);
-    padding: 0.12rem 0.45rem; border-radius: 4px; margin-bottom: 0.5rem;
-  }
   .ca-empty { color: var(--ca-muted) !important; font-size: 0.9rem; padding: 1.2rem 0.2rem; }
   [data-testid="stSidebar"] .stButton > button {
     justify-content: flex-start; text-align: left;
@@ -220,7 +213,6 @@ def _inject_theme(theme: str) -> None:
   }
   section.main div[data-testid="column"],
   section.main div[data-testid="stColumn"] { align-self: stretch !important; }
-  .ca-wb-header [data-testid="stMarkdownContainer"] p { margin-bottom: 0.1rem !important; }
   .ca-wb-actions .stButton > button {
     white-space: nowrap !important;
     min-width: 2.4rem !important;
@@ -305,7 +297,6 @@ def _inject_theme(theme: str) -> None:
     --ca-text: #1f2328;
     --ca-muted: #656d76;
     --ca-tool: #f6f8fa;
-    --ca-code-bg: #f6f8fa;
   }
   html, body, [class*="css"] {
     font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
@@ -354,12 +345,6 @@ def _inject_theme(theme: str) -> None:
   .ca-tool pre {
     white-space: pre-wrap; margin: 0.35rem 0 0; color: var(--ca-muted); font-size: 0.74rem;
   }
-  .ca-file-chip {
-    display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 0.78rem; color: var(--ca-accent);
-    background: #e7f4f1; border: 1px solid #c7e6df;
-    padding: 0.12rem 0.45rem; border-radius: 4px; margin-bottom: 0.5rem;
-  }
   .ca-empty { color: var(--ca-muted); font-size: 0.9rem; padding: 1.2rem 0.2rem; }
   div[data-testid="stChatInput"] textarea {
     background: #fff !important;
@@ -398,7 +383,6 @@ def _inject_theme(theme: str) -> None:
   }
   section.main div[data-testid="column"],
   section.main div[data-testid="stColumn"] { align-self: stretch !important; }
-  .ca-wb-header [data-testid="stMarkdownContainer"] p { margin-bottom: 0.1rem !important; }
   .ca-wb-actions .stButton > button {
     white-space: nowrap !important;
     min-width: 2.4rem !important;
@@ -541,8 +525,6 @@ def _init_state() -> None:
         st.session_state.wb_show_diff = False
     if "wb_preview_mode" not in st.session_state:
         st.session_state.wb_preview_mode = False
-    if "terminal_cmd_prefill" not in st.session_state:
-        st.session_state.terminal_cmd_prefill = ""
     if "terminal_open" not in st.session_state:
         st.session_state.terminal_open = False
     if "terminal_auto_run" not in st.session_state:
@@ -1067,10 +1049,6 @@ def _fe_display_name(node_value: str) -> str:
     return node_value.rsplit("/", 1)[-1]
 
 
-def _fe_is_file_node(node_value: str | None) -> bool:
-    return bool(node_value) and not node_value.startswith(FE_FOLDER_PREFIX)
-
-
 def _fe_file_icon(path: Path) -> BsIcon:
     ext = path.suffix.lower()
     if ext == ".py":
@@ -1299,8 +1277,6 @@ def _consume_events(events, status_box, live, assistant_chunks: list[str]) -> No
         data = event.data
         if et == "status":
             status_box.update(label=data.get("message") or "…", state="running")
-        elif et == "thinking":
-            pass  # keep chat clean; details stay in optional Trace
         elif et == "trace":
             if _should_keep_trace(data.get("step")):
                 st.session_state.traces.append(
@@ -1657,7 +1633,7 @@ def _editor_body(workspace: Path, rel: str, *, term_open: bool) -> None:
     st.session_state.editor_draft = draft
 
 
-def _diff_panel(workspace: Path, rel: str) -> None:
+def _diff_panel(rel: str) -> None:
     diff = _diff_for_file(rel)
     if diff:
         st.code(diff, language="diff")
@@ -1800,11 +1776,6 @@ def _terminal_panel(workspace: Path) -> None:
             st.rerun()
         return
 
-    prefill = st.session_state.get("terminal_cmd_prefill") or ""
-    if prefill:
-        st.session_state["user-terminal-cmd"] = prefill
-        st.session_state.terminal_cmd_prefill = ""
-
     cmd = st.text_input(
         "Command",
         placeholder="python3 calculator.py",
@@ -1862,7 +1833,7 @@ def _workbench_panel(workspace: Path) -> None:
 
     if st.session_state.wb_show_diff and (_diff_for_file(rel) or _change_file_count() > 0):
         with st.expander("Changes", expanded=True):
-            _diff_panel(workspace, rel)
+            _diff_panel(rel)
 
     with st.expander("Terminal", expanded=term_open):
         _terminal_panel(workspace)

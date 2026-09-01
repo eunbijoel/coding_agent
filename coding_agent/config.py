@@ -25,6 +25,21 @@ SHELL_DENY = (
     "> /dev/",
 )
 
+IGNORE_DIR_NAMES = {
+    "__pycache__",
+    ".git",
+    ".venv",
+    "venv",
+    "node_modules",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".deepagents",
+    ".streamlit",
+    "data",
+}
+IGNORE_SUFFIXES = {".pyc", ".pyo", ".pyd", ".so", ".dll", ".egg"}
+
 
 def resolve_workspace(path: str | Path | None = None) -> Path:
     raw = path or os.environ.get("CODING_AGENT_WORKSPACE") or DEFAULT_WORKSPACE

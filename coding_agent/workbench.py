@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from coding_agent.config import MAX_FILE_CHARS, SHELL_DENY, SHELL_TIMEOUT_SEC
+from coding_agent.config import MAX_FILE_CHARS, SHELL_DENY
 
 TEXT_SUFFIXES = {
     ".py",
@@ -292,45 +292,6 @@ def stop_process(proc: subprocess.Popen | None) -> None:
             proc.kill()
         except Exception:  # noqa: BLE001
             pass
-
-
-def run_user_command(
-    workspace: Path,
-    command: str,
-    *,
-    timeout: int | None = None,
-) -> dict[str, Any]:
-    ok, msg = validate_user_command(command)
-    if not ok:
-        return {"ok": False, "error": msg, "exit_code": -1, "stdout": "", "stderr": msg}
-    timeout = timeout or SHELL_TIMEOUT_SEC
-    try:
-        proc = subprocess.run(
-            ["bash", "-lc", command],
-            cwd=str(workspace.resolve()),
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired as exc:
-        out = (exc.stdout or "") + (exc.stderr or "")
-        return {
-            "ok": False,
-            "error": f"Timeout after {timeout}s",
-            "exit_code": -1,
-            "stdout": (exc.stdout or "")[:8000],
-            "stderr": (exc.stderr or "")[:8000],
-            "timed_out": True,
-        }
-    except OSError as exc:
-        return {"ok": False, "error": str(exc), "exit_code": -1, "stdout": "", "stderr": str(exc)}
-    return {
-        "ok": proc.returncode == 0,
-        "exit_code": proc.returncode,
-        "stdout": (proc.stdout or "")[:8000],
-        "stderr": (proc.stderr or "")[:8000],
-        "error": "",
-    }
 
 
 def start_user_command_bg(workspace: Path, command: str) -> dict[str, Any]:

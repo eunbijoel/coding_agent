@@ -211,12 +211,11 @@ class DeepAgentsBridge:
         )
         self._checkpointer = SqliteSaver(self._conn)
         self._agent = None
-        self._backend = None
 
     @property
     def agent(self):
         if self._agent is None:
-            self._agent, self._backend = create_cli_agent(
+            self._agent, _ = create_cli_agent(
                 model=self.model,
                 assistant_id="coding-agent-ui",
                 cwd=self.workspace,
@@ -233,20 +232,6 @@ class DeepAgentsBridge:
     def reset_agent(self) -> None:
         """Force recreate (e.g. after model / auto_approve change)."""
         self._agent = None
-        self._backend = None
-
-    def set_options(self, *, model: str | None = None, auto_approve: bool | None = None) -> None:
-        changed = False
-        if model is not None:
-            new_model = normalize_model(model)
-            if new_model != self.model:
-                self.model = new_model
-                changed = True
-        if auto_approve is not None and auto_approve != self.auto_approve:
-            self.auto_approve = auto_approve
-            changed = True
-        if changed:
-            self.reset_agent()
 
     def _config(self, thread_id: str) -> dict[str, Any]:
         return {
