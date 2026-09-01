@@ -12,10 +12,10 @@ flowchart TB
         Chat["채팅 / 승인 UI"]
         Editor["코드 패널"]
         Sidebar["Thread · Files · Settings"]
-        ThreadStore["ThreadStore<br/>data/messages/*.json"]
+        ThreadStore["ThreadStore"]
     end
 
-    subgraph Bridge["② DeepAgentsBridge · bridge.py (우리가 만든 어댑터)"]
+    subgraph Bridge["② DeepAgentsBridge · bridge.py"]
         Events["AgentEvent 정규화"]
         Snap["workspace 스냅샷 / diff"]
         Verify["py_compile + pytest"]
@@ -38,8 +38,9 @@ flowchart TB
     Bridge --> DCode
     DCode --> Runtime
     Hands --> WS
+    ThreadStore --> ThreadsIdx["data/threads.json"]
+    ThreadStore --> MsgData["data/messages/*.json"]
     CP --> Data["data/checkpoints.sqlite"]
-    ThreadStore --> Data
 ```
 
 
