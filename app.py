@@ -662,6 +662,8 @@ def _init_state() -> None:
         st.session_state.spreadsheet_sheet = {}
     if "upload_status" not in st.session_state:
         st.session_state.upload_status = None
+    if "pending_user_prompt" not in st.session_state:
+        st.session_state.pending_user_prompt = None
     ensure_upload_dirs(Path(st.session_state.workspace))
 
 
@@ -1611,6 +1613,9 @@ def _process_chat_uploads(workspace: Path, files: list) -> list[str]:
             st.session_state.upload_status = f"Uploaded · {result['name']}"
             st.session_state.selected_file = rel
             st.session_state.editor_force_reload = True
+            st.session_state.wb_preview_mode = False
+            st.session_state.wb_show_diff = False
+            _expand_parent_dirs(rel)
             saved.append(rel)
         except Exception as exc:  # noqa: BLE001
             st.session_state.upload_status = None
@@ -2265,6 +2270,7 @@ def main() -> None:
         blocked = st.session_state.pending_interrupt is not None
         user_text = None
         chat_files: list = []
+        pending = st.session_state.pending_user_prompt
 
         if st.session_state.upload_status:
             st.caption(st.session_state.upload_status)
@@ -2278,8 +2284,10 @@ def main() -> None:
                 accept_file="multiple",
                 file_type=["xlsx", "xls", "csv"],
                 max_upload_size=max(1, MAX_UPLOAD_BYTES // (1024 * 1024)),
+                disabled=bool(pending),
             )
-            if raw is not None:
+            # Ignore new submissions while a deferred prompt is about to run.
+            if raw is not None and not pending:
                 if isinstance(raw, str):
                     user_text = raw.strip() or None
                 else:
@@ -2290,8 +2298,15 @@ def main() -> None:
 
         if chat_files:
             saved = _process_chat_uploads(workspace, chat_files)
-            if saved and not user_text:
+            if saved:
+                # Show spreadsheet on the right first; run the agent next turn.
+                if user_text:
+                    st.session_state.pending_user_prompt = user_text
                 st.rerun()
+
+        if pending and not blocked:
+            user_text = pending
+            st.session_state.pending_user_prompt = None
 
         if user_text and not blocked:
             if st.session_state.new_chat_mode or not st.session_state.thread_id:
@@ -2310,8 +2325,6 @@ def main() -> None:
             with st.chat_message("assistant"):
                 status_box = st.status("Working…", expanded=False)
                 live = st.empty()
-                # Inject upload metadata into the prompt so this works even if a
-                # stale cached bridge lacks the upload_paths kwarg.
                 upload_ctx = format_upload_context(_current_upload_paths(workspace))
                 agent_prompt = (
                     f"{upload_ctx}\n\n{user_text}" if upload_ctx else user_text
