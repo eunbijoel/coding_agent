@@ -1581,8 +1581,6 @@ def _render_file_explorer(workspace: Path) -> None:
             _refresh_file_explorer(workspace)
             st.rerun()
 
-    _render_upload(workspace)
-
     children = _build_fe_tree_root(workspace)[0].children
     if not children:
         st.caption("Empty workspace")
@@ -1590,31 +1588,13 @@ def _render_file_explorer(workspace: Path) -> None:
     _file_explorer_tree(workspace)
 
 
-def _render_upload(workspace: Path) -> None:
-    overwrite = st.checkbox(
-        "Overwrite existing",
-        value=False,
-        key="fe-upload-overwrite",
-        help="Off = save as a unique name when the file already exists",
-    )
-    uploaded = st.file_uploader(
-        "Upload",
-        type=["xlsx", "xls", "csv"],
-        accept_multiple_files=True,
-        key="fe-uploader",
-        label_visibility="collapsed",
-        help=f"Excel/CSV → uploads/ · max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB each",
-    )
-    if st.session_state.upload_status:
-        st.caption(st.session_state.upload_status)
-
-    if not uploaded:
-        return
-
-    saved_any = False
-    for item in uploaded:
-        file_id = getattr(item, "file_id", None) or f"{item.name}:{item.size}"
+def _process_chat_uploads(workspace: Path, files: list) -> list[str]:
+    """Save chat-attached Excel/CSV files into workspace/uploads/."""
+    saved: list[str] = []
+    for item in files:
+        file_id = getattr(item, "file_id", None) or f"{item.name}:{getattr(item, 'size', 0)}"
         if file_id in st.session_state.upload_seen_ids:
+            # Still track path if we already saved this attachment in-session
             continue
         try:
             data = item.getvalue()
@@ -1622,7 +1602,7 @@ def _render_upload(workspace: Path) -> None:
                 workspace,
                 filename=item.name,
                 data=data,
-                overwrite=overwrite,
+                overwrite=False,
             )
             rel = result["path"]
             if rel not in st.session_state.uploaded_files:
@@ -1631,15 +1611,14 @@ def _render_upload(workspace: Path) -> None:
             st.session_state.upload_status = f"Uploaded · {result['name']}"
             st.session_state.selected_file = rel
             st.session_state.editor_force_reload = True
-            saved_any = True
+            saved.append(rel)
         except Exception as exc:  # noqa: BLE001
             st.session_state.upload_status = None
             st.error(str(exc))
             st.session_state.upload_seen_ids.add(file_id)
-
-    if saved_any:
+    if saved:
         _refresh_file_explorer(workspace)
-        st.rerun()
+    return saved
 
 
 def _current_upload_paths(workspace: Path) -> list[str]:
@@ -2284,12 +2263,35 @@ def main() -> None:
             _agent_details_panel()
 
         blocked = st.session_state.pending_interrupt is not None
-        prompt = None
+        user_text = None
+        chat_files: list = []
+
+        if st.session_state.upload_status:
+            st.caption(st.session_state.upload_status)
+        recent = list(st.session_state.uploaded_files[-3:])
+        if recent:
+            st.caption("Attached · " + " · ".join(Path(p).name for p in recent))
+
         if not blocked:
-            prompt = st.chat_input("Message the coding agent…")
+            raw = st.chat_input(
+                "Message the coding agent…",
+                accept_file="multiple",
+                file_type=["xlsx", "xls", "csv"],
+                max_upload_size=max(1, MAX_UPLOAD_BYTES // (1024 * 1024)),
+            )
+            if raw is not None:
+                if isinstance(raw, str):
+                    user_text = raw.strip() or None
+                else:
+                    user_text = (getattr(raw, "text", None) or "").strip() or None
+                    chat_files = list(getattr(raw, "files", None) or [])
         else:
             st.caption("Approve or reject to continue.")
-        user_text = prompt
+
+        if chat_files:
+            saved = _process_chat_uploads(workspace, chat_files)
+            if saved and not user_text:
+                st.rerun()
 
         if user_text and not blocked:
             if st.session_state.new_chat_mode or not st.session_state.thread_id:
