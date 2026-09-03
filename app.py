@@ -21,7 +21,6 @@ from coding_agent.threads import ThreadStore
 from coding_agent.workbench import (
     classify_file,
     detect_preview_kind,
-    is_spreadsheet_file,
     poll_preview,
     poll_user_terminal,
     read_workspace_text,
@@ -37,6 +36,7 @@ from coding_agent.workbench import (
 from coding_agent.spreadsheet import (
     MAX_UPLOAD_BYTES,
     ensure_upload_dirs,
+    is_spreadsheet_path as is_spreadsheet_file,
     list_upload_relpaths,
     preview_spreadsheet,
     save_upload,
