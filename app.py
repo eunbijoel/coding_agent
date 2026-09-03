@@ -36,6 +36,7 @@ from coding_agent.workbench import (
 from coding_agent.spreadsheet import (
     MAX_UPLOAD_BYTES,
     ensure_upload_dirs,
+    format_upload_context,
     is_spreadsheet_path as is_spreadsheet_file,
     list_upload_relpaths,
     preview_spreadsheet,
@@ -558,7 +559,16 @@ def _store() -> ThreadStore:
     return ThreadStore(DATA_DIR)
 
 
-BRIDGE_CACHE_VERSION = "spreadsheet-v1"
+def _bridge_cache_token() -> str:
+    """Invalidate cached bridges when spreadsheet/bridge code changes."""
+    parts: list[str] = ["spreadsheet-v2"]
+    for name in ("bridge.py", "spreadsheet.py"):
+        path = ROOT / "coding_agent" / name
+        try:
+            parts.append(f"{name}:{path.stat().st_mtime_ns}")
+        except OSError:
+            parts.append(f"{name}:missing")
+    return "|".join(parts)
 
 
 @st.cache_resource(show_spinner=False)
@@ -566,9 +576,9 @@ def _bridge(
     workspace: str,
     model: str,
     auto_approve: bool,
-    _cache_version: str = BRIDGE_CACHE_VERSION,
+    _cache_token: str,
 ) -> DeepAgentsBridge:
-    del _cache_version  # cache-busting only
+    del _cache_token
     return DeepAgentsBridge(workspace, model=model, auto_approve=auto_approve)
 
 
@@ -2236,21 +2246,17 @@ def main() -> None:
     st.session_state.workspace = str(workspace)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+    cache_token = _bridge_cache_token()
+    if st.session_state.get("_bridge_cache_token") != cache_token:
+        st.cache_resource.clear()
+        st.session_state._bridge_cache_token = cache_token
+
     bridge = _bridge(
         str(workspace),
         st.session_state.model,
         bool(st.session_state.auto_approve),
-        BRIDGE_CACHE_VERSION,
+        cache_token,
     )
-    # Drop stale cached bridges from before spreadsheet upload support.
-    if "upload_paths" not in bridge.run.__code__.co_varnames:
-        st.cache_resource.clear()
-        bridge = _bridge(
-            str(workspace),
-            st.session_state.model,
-            bool(st.session_state.auto_approve),
-            BRIDGE_CACHE_VERSION,
-        )
 
     with st.sidebar:
         _sidebar(workspace)
@@ -2302,11 +2308,16 @@ def main() -> None:
             with st.chat_message("assistant"):
                 status_box = st.status("Working…", expanded=False)
                 live = st.empty()
+                # Inject upload metadata into the prompt so this works even if a
+                # stale cached bridge lacks the upload_paths kwarg.
+                upload_ctx = format_upload_context(_current_upload_paths(workspace))
+                agent_prompt = (
+                    f"{upload_ctx}\n\n{user_text}" if upload_ctx else user_text
+                )
                 _consume_events(
                     bridge.run(
-                        user_text,
+                        agent_prompt,
                         thread_id=st.session_state.thread_id,
-                        upload_paths=_current_upload_paths(workspace),
                     ),
                     status_box,
                     live,
