@@ -91,6 +91,11 @@ streamlit run app.py
 
 
 
+## 실행 환경 및 테스트 결과
+
+상세 실행 방법, 시스템 규격, 테스트 프롬프트와 측정 결과는
+[실행·검증 가이드](docs/EXECUTION_GUIDE.md)를 참고하세요.
+
 ## 참고
 
 - [https://pypi.org/project/deepagents-code/](https://pypi.org/project/deepagents-code/)
