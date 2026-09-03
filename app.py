@@ -558,8 +558,17 @@ def _store() -> ThreadStore:
     return ThreadStore(DATA_DIR)
 
 
+BRIDGE_CACHE_VERSION = "spreadsheet-v1"
+
+
 @st.cache_resource(show_spinner=False)
-def _bridge(workspace: str, model: str, auto_approve: bool) -> DeepAgentsBridge:
+def _bridge(
+    workspace: str,
+    model: str,
+    auto_approve: bool,
+    _cache_version: str = BRIDGE_CACHE_VERSION,
+) -> DeepAgentsBridge:
+    del _cache_version  # cache-busting only
     return DeepAgentsBridge(workspace, model=model, auto_approve=auto_approve)
 
 
@@ -2231,7 +2240,17 @@ def main() -> None:
         str(workspace),
         st.session_state.model,
         bool(st.session_state.auto_approve),
+        BRIDGE_CACHE_VERSION,
     )
+    # Drop stale cached bridges from before spreadsheet upload support.
+    if "upload_paths" not in bridge.run.__code__.co_varnames:
+        st.cache_resource.clear()
+        bridge = _bridge(
+            str(workspace),
+            st.session_state.model,
+            bool(st.session_state.auto_approve),
+            BRIDGE_CACHE_VERSION,
+        )
 
     with st.sidebar:
         _sidebar(workspace)
