@@ -21,6 +21,7 @@ from coding_agent.threads import ThreadStore
 from coding_agent.workbench import (
     classify_file,
     detect_preview_kind,
+    is_spreadsheet_file,
     poll_preview,
     poll_user_terminal,
     read_workspace_text,
@@ -32,6 +33,13 @@ from coding_agent.workbench import (
     unified_diff,
     validate_user_command,
     write_workspace_text,
+)
+from coding_agent.spreadsheet import (
+    MAX_UPLOAD_BYTES,
+    ensure_upload_dirs,
+    list_upload_relpaths,
+    preview_spreadsheet,
+    save_upload,
 )
 
 st.set_page_config(
@@ -627,6 +635,15 @@ def _init_state() -> None:
         st.session_state.file_explorer_expanded = []
     if "fe_pick_key" not in st.session_state:
         st.session_state.fe_pick_key = None
+    if "uploaded_files" not in st.session_state:
+        st.session_state.uploaded_files = []
+    if "upload_seen_ids" not in st.session_state:
+        st.session_state.upload_seen_ids = set()
+    if "spreadsheet_sheet" not in st.session_state:
+        st.session_state.spreadsheet_sheet = {}
+    if "upload_status" not in st.session_state:
+        st.session_state.upload_status = None
+    ensure_upload_dirs(Path(st.session_state.workspace))
 
 
 def _sync_main_split_from_query() -> None:
@@ -1545,11 +1562,115 @@ def _render_file_explorer(workspace: Path) -> None:
             _refresh_file_explorer(workspace)
             st.rerun()
 
+    _render_upload(workspace)
+
     children = _build_fe_tree_root(workspace)[0].children
     if not children:
         st.caption("Empty workspace")
         return
     _file_explorer_tree(workspace)
+
+
+def _render_upload(workspace: Path) -> None:
+    overwrite = st.checkbox(
+        "Overwrite existing",
+        value=False,
+        key="fe-upload-overwrite",
+        help="Off = save as a unique name when the file already exists",
+    )
+    uploaded = st.file_uploader(
+        "Upload",
+        type=["xlsx", "xls", "csv"],
+        accept_multiple_files=True,
+        key="fe-uploader",
+        label_visibility="collapsed",
+        help=f"Excel/CSV → uploads/ · max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB each",
+    )
+    if st.session_state.upload_status:
+        st.caption(st.session_state.upload_status)
+
+    if not uploaded:
+        return
+
+    saved_any = False
+    for item in uploaded:
+        file_id = getattr(item, "file_id", None) or f"{item.name}:{item.size}"
+        if file_id in st.session_state.upload_seen_ids:
+            continue
+        try:
+            data = item.getvalue()
+            result = save_upload(
+                workspace,
+                filename=item.name,
+                data=data,
+                overwrite=overwrite,
+            )
+            rel = result["path"]
+            if rel not in st.session_state.uploaded_files:
+                st.session_state.uploaded_files.append(rel)
+            st.session_state.upload_seen_ids.add(file_id)
+            st.session_state.upload_status = f"Uploaded · {result['name']}"
+            st.session_state.selected_file = rel
+            st.session_state.editor_force_reload = True
+            saved_any = True
+        except Exception as exc:  # noqa: BLE001
+            st.session_state.upload_status = None
+            st.error(str(exc))
+            st.session_state.upload_seen_ids.add(file_id)
+
+    if saved_any:
+        _refresh_file_explorer(workspace)
+        st.rerun()
+
+
+def _current_upload_paths(workspace: Path) -> list[str]:
+    """Session uploads plus current files under workspace/uploads/."""
+    paths: list[str] = []
+    seen: set[str] = set()
+    for p in list(st.session_state.uploaded_files) + list_upload_relpaths(workspace):
+        if p not in seen:
+            seen.add(p)
+            paths.append(p)
+    return paths
+
+
+def _spreadsheet_preview_body(workspace: Path, rel: str, *, term_open: bool) -> None:
+    sheets_map = st.session_state.spreadsheet_sheet
+    preferred = sheets_map.get(rel)
+    info = preview_spreadsheet(workspace, rel, sheet=preferred)
+    if not info.get("ok"):
+        st.warning(info.get("error") or "Preview failed")
+        return
+
+    sheet_names = info.get("sheets") or []
+    if info.get("format") != "csv" and len(sheet_names) > 1:
+        idx = sheet_names.index(info["sheet"]) if info["sheet"] in sheet_names else 0
+        chosen = st.selectbox("Sheet", sheet_names, index=idx, key=f"ss-sheet-{rel}")
+        if chosen != info["sheet"]:
+            sheets_map[rel] = chosen
+            st.rerun()
+    elif sheet_names:
+        st.caption(f"Sheet · {info['sheet']}")
+
+    meta_l, meta_r = st.columns(2)
+    meta_l.caption(f"Rows · {info['rows']}  ·  Columns · {info['columns']}")
+    meta_r.caption(f"Format · {info.get('format', '')}")
+
+    with st.expander("Columns & dtypes", expanded=False):
+        dtypes = info.get("dtypes") or {}
+        for name in info.get("column_names") or []:
+            st.text(f"{name}  ·  {dtypes.get(name, '')}")
+
+    preview = info.get("preview")
+    if preview is not None and not getattr(preview, "empty", True):
+        st.dataframe(preview, use_container_width=True, hide_index=True)
+        if info["rows"] > len(preview):
+            st.caption(f"Showing first {len(preview)} of {info['rows']} rows")
+    else:
+        st.caption("No rows to preview.")
+    del term_open
+
+
 
 
 def _sidebar_settings(workspace: Path) -> None:
@@ -1835,12 +1956,30 @@ def _editor_header(workspace: Path, rel: str, *, dirty: bool, preview_kind: str 
     left, right = st.columns([6, 4], gap="small")
     with left:
         title = escape(name)
-        if dirty:
+        if is_spreadsheet_file(rel):
+            st.markdown(f"**{title}** · Spreadsheet")
+        elif dirty:
             st.markdown(f"**{title}** · Modified")
         else:
             st.markdown(f"**{title}**")
         if rel != name:
             st.caption(rel)
+
+    if is_spreadsheet_file(rel):
+        with right:
+            try:
+                path = resolve_workspace_file(workspace, rel)
+                st.download_button(
+                    "Download",
+                    data=path.read_bytes(),
+                    file_name=name,
+                    mime="application/octet-stream",
+                    key=f"wb-ss-dl-{rel}",
+                    use_container_width=True,
+                )
+            except Exception:  # noqa: BLE001
+                pass
+        return
 
     actions: list[tuple[str, str, str]] = []
     if _diff_for_file(rel) or _change_file_count() > 0:
@@ -1904,6 +2043,9 @@ def _editor_body(workspace: Path, rel: str, *, term_open: bool) -> None:
         path = resolve_workspace_file(workspace, rel)
     except PermissionError as exc:
         st.error(str(exc))
+        return
+    if is_spreadsheet_file(path):
+        _spreadsheet_preview_body(workspace, rel, term_open=term_open)
         return
     kind = classify_file(path)
     if kind == "binary":
@@ -2052,8 +2194,12 @@ def _workbench_panel(workspace: Path) -> None:
         return
 
     _sync_editor_buffer(workspace)
-    dirty = st.session_state.editor_draft != st.session_state.editor_disk
-    preview_kind = _preview_eligible(workspace, rel)
+    dirty = (
+        False
+        if is_spreadsheet_file(rel)
+        else st.session_state.editor_draft != st.session_state.editor_disk
+    )
+    preview_kind = None if is_spreadsheet_file(rel) else _preview_eligible(workspace, rel)
 
     if preview_kind is None:
         st.session_state.wb_preview_mode = False
@@ -2138,7 +2284,11 @@ def main() -> None:
                 status_box = st.status("Working…", expanded=False)
                 live = st.empty()
                 _consume_events(
-                    bridge.run(user_text, thread_id=st.session_state.thread_id),
+                    bridge.run(
+                        user_text,
+                        thread_id=st.session_state.thread_id,
+                        upload_paths=_current_upload_paths(workspace),
+                    ),
                     status_box,
                     live,
                     assistant_chunks,

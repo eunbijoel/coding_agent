@@ -29,6 +29,7 @@ from coding_agent.config import (
     resolve_workspace,
 )
 from coding_agent.events import AgentEvent
+from coding_agent.spreadsheet import format_upload_context, make_spreadsheet_tools
 
 # Prove at import time that deepagents-code is the runtime dependency.
 import deepagents_code as _deepagents_code  # noqa: F401
@@ -37,7 +38,10 @@ from deepagents_code.agent import create_cli_agent
 USER_HINT = (
     "[Workbench] Prefer tools over guessing; reply in the user's language; "
     "after edits briefly explain what changed. When done, leave code in a "
-    "runnable state.\n\n"
+    "runnable state. For Excel/CSV (.xlsx/.xls/.csv), use inspect_spreadsheet "
+    "and read_spreadsheet — do not use read_file on binary workbooks. Write "
+    "analysis outputs under workspace/outputs/ when the user asks to save "
+    "results.\n\n"
 )
 
 def normalize_model(model: str | None) -> str:
@@ -226,6 +230,7 @@ class DeepAgentsBridge:
                 enable_skills=False,
                 enable_shell=True,
                 checkpointer=self._checkpointer,
+                tools=make_spreadsheet_tools(self.workspace),
             )
         return self._agent
 
@@ -406,6 +411,7 @@ class DeepAgentsBridge:
         user_prompt: str,
         *,
         thread_id: str,
+        upload_paths: list[str] | None = None,
     ) -> Iterator[AgentEvent]:
         """Start or continue a thread turn via deepagents-code."""
         yield ev.status(
@@ -417,8 +423,13 @@ class DeepAgentsBridge:
         yield ev.trace("start", f"prompt length={len(user_prompt)}")
         before = snapshot_workspace(self.workspace)
         yield ev.status("running deepagents-code…")
+        upload_block = format_upload_context(upload_paths or [])
+        content = USER_HINT
+        if upload_block:
+            content += upload_block + "\n\n"
+        content += user_prompt
         yield from self._map_stream(
-            {"messages": [HumanMessage(content=USER_HINT + user_prompt)]},
+            {"messages": [HumanMessage(content=content)]},
             thread_id=thread_id,
             before_snap=before,
         )
