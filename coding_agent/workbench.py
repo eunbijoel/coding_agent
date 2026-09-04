@@ -57,12 +57,6 @@ BINARY_SUFFIXES = {
     ".xls",
 }
 
-SPREADSHEET_SUFFIXES = {".xlsx", ".xls", ".csv"}
-
-
-def is_spreadsheet_file(path: Path | str) -> bool:
-    return Path(path).suffix.lower() in SPREADSHEET_SUFFIXES
-
 USER_CMD_DENY = SHELL_DENY + (
     "rm -rf",
     "rm -fr",

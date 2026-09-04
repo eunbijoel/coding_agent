@@ -29,7 +29,7 @@ from coding_agent.config import (
     resolve_workspace,
 )
 from coding_agent.events import AgentEvent
-from coding_agent.spreadsheet import format_upload_context, make_spreadsheet_tools
+from coding_agent.spreadsheet import make_spreadsheet_tools
 
 # Prove at import time that deepagents-code is the runtime dependency.
 import deepagents_code as _deepagents_code  # noqa: F401
@@ -234,10 +234,6 @@ class DeepAgentsBridge:
             )
         return self._agent
 
-    def reset_agent(self) -> None:
-        """Force recreate (e.g. after model / auto_approve change)."""
-        self._agent = None
-
     def _config(self, thread_id: str) -> dict[str, Any]:
         return {
             "configurable": {"thread_id": thread_id},
@@ -411,7 +407,6 @@ class DeepAgentsBridge:
         user_prompt: str,
         *,
         thread_id: str,
-        upload_paths: list[str] | None = None,
     ) -> Iterator[AgentEvent]:
         """Start or continue a thread turn via deepagents-code."""
         yield ev.status(
@@ -423,13 +418,8 @@ class DeepAgentsBridge:
         yield ev.trace("start", f"prompt length={len(user_prompt)}")
         before = snapshot_workspace(self.workspace)
         yield ev.status("running deepagents-code…")
-        upload_block = format_upload_context(upload_paths or [])
-        content = USER_HINT
-        if upload_block:
-            content += upload_block + "\n\n"
-        content += user_prompt
         yield from self._map_stream(
-            {"messages": [HumanMessage(content=content)]},
+            {"messages": [HumanMessage(content=USER_HINT + user_prompt)]},
             thread_id=thread_id,
             before_snap=before,
         )

@@ -1637,7 +1637,7 @@ def _current_upload_paths(workspace: Path) -> list[str]:
     return paths
 
 
-def _spreadsheet_preview_body(workspace: Path, rel: str, *, term_open: bool) -> None:
+def _spreadsheet_preview_body(workspace: Path, rel: str) -> None:
     sheets_map = st.session_state.spreadsheet_sheet
     preferred = sheets_map.get(rel)
     info = preview_spreadsheet(workspace, rel, sheet=preferred)
@@ -1671,7 +1671,6 @@ def _spreadsheet_preview_body(workspace: Path, rel: str, *, term_open: bool) -> 
             st.caption(f"Showing first {len(preview)} of {info['rows']} rows")
     else:
         st.caption("No rows to preview.")
-    del term_open
 
 
 
@@ -2048,7 +2047,7 @@ def _editor_body(workspace: Path, rel: str, *, term_open: bool) -> None:
         st.error(str(exc))
         return
     if is_spreadsheet_file(path):
-        _spreadsheet_preview_body(workspace, rel, term_open=term_open)
+        _spreadsheet_preview_body(workspace, rel)
         return
     kind = classify_file(path)
     if kind == "binary":
