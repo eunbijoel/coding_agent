@@ -35,12 +35,12 @@ from coding_agent.workbench import (
 )
 from coding_agent.spreadsheet import (
     MAX_UPLOAD_BYTES,
+    clear_session_uploads,
     ensure_upload_dirs,
     format_upload_context,
     is_spreadsheet_path as is_spreadsheet_file,
-    list_upload_relpaths,
     preview_spreadsheet,
-    save_upload,
+    save_session_upload,
 )
 
 st.set_page_config(
@@ -955,6 +955,13 @@ def _go_new_chat() -> None:
     st.session_state.editor_draft_path = None
     st.session_state.editor_draft = ""
     st.session_state.editor_disk = ""
+    st.session_state.uploaded_files = []
+    st.session_state.upload_seen_ids = set()
+    st.session_state.upload_status = None
+    try:
+        clear_session_uploads(resolve_workspace())
+    except Exception:  # noqa: BLE001
+        pass
     st.rerun()
 
 
@@ -1591,7 +1598,7 @@ def _render_file_explorer(workspace: Path) -> None:
 
 
 def _process_chat_uploads(workspace: Path, files: list) -> list[str]:
-    """Save chat-attached Excel/CSV files into workspace/uploads/."""
+    """Save chat-attached Excel/CSV into ephemeral .session_uploads/ (not uploads/)."""
     saved: list[str] = []
     for item in files:
         file_id = getattr(item, "file_id", None) or f"{item.name}:{getattr(item, 'size', 0)}"
@@ -1600,17 +1607,16 @@ def _process_chat_uploads(workspace: Path, files: list) -> list[str]:
             continue
         try:
             data = item.getvalue()
-            result = save_upload(
+            result = save_session_upload(
                 workspace,
                 filename=item.name,
                 data=data,
-                overwrite=False,
             )
             rel = result["path"]
             if rel not in st.session_state.uploaded_files:
                 st.session_state.uploaded_files.append(rel)
             st.session_state.upload_seen_ids.add(file_id)
-            st.session_state.upload_status = f"Uploaded · {result['name']}"
+            st.session_state.upload_status = f"Attached · {result['name']}"
             st.session_state.selected_file = rel
             st.session_state.editor_force_reload = True
             st.session_state.wb_preview_mode = False
@@ -1627,10 +1633,10 @@ def _process_chat_uploads(workspace: Path, files: list) -> list[str]:
 
 
 def _current_upload_paths(workspace: Path) -> list[str]:
-    """Session uploads plus current files under workspace/uploads/."""
+    """Session chat attachments only (no permanent uploads/ scan)."""
     paths: list[str] = []
     seen: set[str] = set()
-    for p in list(st.session_state.uploaded_files) + list_upload_relpaths(workspace):
+    for p in list(st.session_state.uploaded_files):
         if p not in seen:
             seen.add(p)
             paths.append(p)

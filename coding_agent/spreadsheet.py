@@ -10,6 +10,8 @@ from typing import Any
 from langchain_core.tools import tool
 
 UPLOAD_DIR = "uploads"
+# Chat attachments only — wiped on new chat; not long-term storage.
+SESSION_UPLOAD_DIR = ".session_uploads"
 OUTPUT_DIR = "outputs"
 ALLOWED_SUFFIXES = {".xlsx", ".xls", ".csv"}
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MiB
@@ -26,6 +28,25 @@ def ensure_upload_dirs(workspace: Path) -> tuple[Path, Path]:
     uploads.mkdir(parents=True, exist_ok=True)
     outputs.mkdir(parents=True, exist_ok=True)
     return uploads, outputs
+
+
+def ensure_session_upload_dir(workspace: Path) -> Path:
+    path = workspace / SESSION_UPLOAD_DIR
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def clear_session_uploads(workspace: Path) -> None:
+    """Remove ephemeral chat upload files (frees disk; not used as permanent storage)."""
+    path = workspace / SESSION_UPLOAD_DIR
+    if not path.is_dir():
+        return
+    for child in path.iterdir():
+        if child.is_file():
+            try:
+                child.unlink()
+            except OSError:
+                pass
 
 
 def sanitize_filename(name: str) -> str:
@@ -94,7 +115,11 @@ def save_upload(
     data: bytes,
     overwrite: bool = False,
 ) -> dict[str, Any]:
-    """Save upload bytes under workspace/uploads/. Returns relative path info."""
+    """Save upload bytes under workspace/uploads/. Returns relative path info.
+
+    Prefer :func:`save_session_upload` for chat attachments so files are not
+    kept permanently under ``uploads/``.
+    """
     if len(data) > MAX_UPLOAD_BYTES:
         mb = MAX_UPLOAD_BYTES / (1024 * 1024)
         raise ValueError(f"File too large (max {mb:.0f} MB)")
@@ -112,6 +137,31 @@ def save_upload(
         "name": dest.name,
         "bytes": len(data),
         "overwritten": overwrite and (uploads / safe_name) == dest,
+    }
+
+
+def save_session_upload(
+    workspace: Path,
+    *,
+    filename: str,
+    data: bytes,
+) -> dict[str, Any]:
+    """Save chat attachment under workspace/.session_uploads/ (ephemeral)."""
+    if len(data) > MAX_UPLOAD_BYTES:
+        mb = MAX_UPLOAD_BYTES / (1024 * 1024)
+        raise ValueError(f"File too large (max {mb:.0f} MB)")
+    safe_name = sanitize_filename(filename)
+    session_dir = ensure_session_upload_dir(workspace)
+    dest = unique_dest(session_dir, safe_name)
+    dest.write_bytes(data)
+    rel = str(dest.relative_to(workspace.resolve()))
+    return {
+        "ok": True,
+        "path": rel,
+        "name": dest.name,
+        "bytes": len(data),
+        "overwritten": False,
+        "ephemeral": True,
     }
 
 
@@ -363,7 +413,8 @@ def format_upload_context(paths: list[str]) -> str:
     if not paths:
         return ""
     lines = [
-        "[Uploaded spreadsheets — workspace-relative paths]",
+        "[Session spreadsheet attachments — workspace-relative paths]",
+        "These files are temporary for this chat (not kept in uploads/).",
         "Use inspect_spreadsheet / read_spreadsheet to read data.",
         "Do not use read_file on .xlsx/.xls (binary). Prefer outputs under workspace/outputs/.",
         "If multiple files exist and the user is unclear which one, ask for the filename.",

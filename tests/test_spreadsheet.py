@@ -49,6 +49,18 @@ def test_sanitize_blocks_path_traversal() -> None:
     assert sanitize_filename("sales.xlsx") == "sales.xlsx"
 
 
+def test_save_session_upload_is_ephemeral(workspace: Path) -> None:
+    from coding_agent.spreadsheet import clear_session_uploads, save_session_upload
+
+    data = b"a,b\n1,2\n"
+    result = save_session_upload(workspace, filename="tmp.csv", data=data)
+    assert result["path"].startswith(".session_uploads/")
+    assert result.get("ephemeral") is True
+    assert (workspace / result["path"]).is_file()
+    clear_session_uploads(workspace)
+    assert not (workspace / result["path"]).exists()
+
+
 def test_save_upload_xlsx_and_csv(workspace: Path) -> None:
     src = workspace / "tmp.xlsx"
     _sample_xlsx(src)
