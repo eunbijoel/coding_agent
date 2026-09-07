@@ -667,6 +667,12 @@ def _init_state() -> None:
         st.session_state.pending_user_prompt = None
     if "fe_delete_target" not in st.session_state:
         st.session_state.fe_delete_target = None
+    if "fe_tree_nonce" not in st.session_state:
+        st.session_state.fe_tree_nonce = 0
+    if "fe_delete_error" not in st.session_state:
+        st.session_state.fe_delete_error = None
+    if "editor_close_confirm" not in st.session_state:
+        st.session_state.editor_close_confirm = False
     ensure_upload_dirs(Path(st.session_state.workspace))
 
 
@@ -1554,9 +1560,11 @@ def _refresh_file_explorer(workspace: Path) -> None:
     sel = st.session_state.selected_file
     if sel and sel not in files:
         st.session_state.selected_file = None
+        st.session_state.editor_force_reload = True
+    st.session_state.fe_pick_key = None
+    st.session_state.fe_tree_nonce = int(st.session_state.get("fe_tree_nonce", 0)) + 1
 
 
-@st.fragment
 def _file_explorer_tree(workspace: Path) -> None:
     _ensure_selected_parents_expanded()
     items = _build_fe_tree_root(workspace)
@@ -1564,6 +1572,7 @@ def _file_explorer_tree(workspace: Path) -> None:
     selected = st.session_state.selected_file
     open_index = _fe_open_index(items, expanded, selected)
     sel_idx = _fe_selected_index(items, selected)
+    nonce = int(st.session_state.get("fe_tree_nonce", 0))
     picked = sac.tree(
         items,
         index=sel_idx if sel_idx is not None else 0,
@@ -1574,7 +1583,7 @@ def _file_explorer_tree(workspace: Path) -> None:
         height=380,
         size="sm",
         return_index=False,
-        key="fe_tree",
+        key=f"fe_tree_{nonce}",
     )
     if isinstance(picked, list):
         picked = picked[0] if picked else None
@@ -1584,60 +1593,74 @@ def _file_explorer_tree(workspace: Path) -> None:
     st.session_state.fe_pick_key = picked
 
 
+def _delete_selected_file(workspace: Path, target: str) -> None:
+    ok, err = delete_workspace_file(workspace, target)
+    if not ok:
+        st.session_state.fe_delete_error = err or "Delete failed"
+        return
+    st.session_state.fe_delete_error = None
+    st.session_state.uploaded_files = [
+        p for p in st.session_state.uploaded_files if p != target
+    ]
+    if st.session_state.selected_file == target:
+        st.session_state.selected_file = None
+        st.session_state.editor_draft = ""
+        st.session_state.editor_disk = ""
+        st.session_state.editor_draft_path = None
+        st.session_state.editor_force_reload = True
+    st.session_state.file_views = [
+        v for v in st.session_state.file_views if v.get("path") != target
+    ]
+    st.session_state.file_changes = [
+        c for c in st.session_state.file_changes if c.get("path") != target
+    ]
+    st.session_state.spreadsheet_sheet.pop(target, None)
+    if st.session_state.upload_status and Path(target).name in (
+        st.session_state.upload_status or ""
+    ):
+        st.session_state.upload_status = None
+    st.session_state.fe_delete_target = None
+    _refresh_file_explorer(workspace)
+
+
 def _render_file_explorer(workspace: Path) -> None:
     sel = st.session_state.selected_file
-    head_left, head_right = st.columns([4, 2], gap="small")
+    head_left, head_right = st.columns([5, 1], gap="small")
     with head_left:
         st.markdown('<div class="ca-section ca-fe-title">Files</div>', unsafe_allow_html=True)
     with head_right:
-        act_cols = st.columns(2, gap="small")
-        with act_cols[0]:
-            if sel:
-                action = st.menu_button(
-                    "⋯",
-                    options=["Delete"],
-                    key="fe-file-menu",
-                    type="tertiary",
-                    help=f"Actions for {Path(sel).name}",
-                )
-                if action == "Delete":
-                    st.session_state.fe_delete_target = sel
-        with act_cols[1]:
-            if st.button("↻", key="fe-refresh", help="Refresh file tree", type="tertiary"):
-                _refresh_file_explorer(workspace)
+        if st.button("↻", key="fe-refresh", help="Refresh file tree", type="tertiary"):
+            _refresh_file_explorer(workspace)
+            st.rerun()
+
+    if st.session_state.get("fe_delete_error"):
+        st.error(st.session_state.fe_delete_error)
+        st.session_state.fe_delete_error = None
+
+    if sel:
+        name = Path(sel).name
+        row_l, row_r = st.columns([3, 2], gap="small")
+        with row_l:
+            st.caption(name)
+        with row_r:
+            if st.button(
+                "Delete",
+                key="fe-delete-btn",
+                type="secondary",
+                use_container_width=True,
+                help=f"Delete {name}",
+            ):
+                st.session_state.fe_delete_target = sel
                 st.rerun()
 
     if st.session_state.fe_delete_target:
         target = st.session_state.fe_delete_target
-        st.caption(f"Delete `{Path(target).name}`?")
+        st.warning(f"Delete `{Path(target).name}`?")
         c_yes, c_no = st.columns(2, gap="small")
         with c_yes:
             if st.button("Confirm", key="fe-del-yes", type="primary", use_container_width=True):
-                ok, err = delete_workspace_file(workspace, target)
-                if not ok:
-                    st.error(err or "Delete failed")
-                else:
-                    if target in st.session_state.uploaded_files:
-                        st.session_state.uploaded_files = [
-                            p for p in st.session_state.uploaded_files if p != target
-                        ]
-                    if st.session_state.selected_file == target:
-                        st.session_state.selected_file = None
-                        st.session_state.editor_force_reload = True
-                    st.session_state.file_views = [
-                        v for v in st.session_state.file_views if v.get("path") != target
-                    ]
-                    st.session_state.file_changes = [
-                        c for c in st.session_state.file_changes if c.get("path") != target
-                    ]
-                    st.session_state.spreadsheet_sheet.pop(target, None)
-                    if st.session_state.upload_status and Path(target).name in (
-                        st.session_state.upload_status or ""
-                    ):
-                        st.session_state.upload_status = None
-                    st.session_state.fe_delete_target = None
-                    _refresh_file_explorer(workspace)
-                    st.rerun()
+                _delete_selected_file(workspace, target)
+                st.rerun()
         with c_no:
             if st.button("Cancel", key="fe-del-no", use_container_width=True):
                 st.session_state.fe_delete_target = None
@@ -2012,6 +2035,20 @@ def _save_editor_file(workspace: Path, rel: str) -> None:
     st.rerun()
 
 
+def _close_open_file() -> None:
+    """Clear the right-pane file selection without deleting the file."""
+    st.session_state.selected_file = None
+    st.session_state.editor_draft = ""
+    st.session_state.editor_disk = ""
+    st.session_state.editor_draft_path = None
+    st.session_state.editor_force_reload = False
+    st.session_state.editor_pending_save = False
+    st.session_state.editor_close_confirm = False
+    st.session_state.wb_preview_mode = False
+    st.session_state.wb_show_diff = False
+    st.session_state.fe_pick_key = None
+
+
 def _editor_header(workspace: Path, rel: str, *, dirty: bool, preview_kind: str | None) -> None:
     name = Path(rel).name
     left, right = st.columns([6, 4], gap="small")
@@ -2028,18 +2065,24 @@ def _editor_header(workspace: Path, rel: str, *, dirty: bool, preview_kind: str 
 
     if is_spreadsheet_file(rel):
         with right:
-            try:
-                path = resolve_workspace_file(workspace, rel)
-                st.download_button(
-                    "Download",
-                    data=path.read_bytes(),
-                    file_name=name,
-                    mime="application/octet-stream",
-                    key=f"wb-ss-dl-{rel}",
-                    use_container_width=True,
-                )
-            except Exception:  # noqa: BLE001
-                pass
+            dl, close = st.columns([3, 1], gap="small")
+            with dl:
+                try:
+                    path = resolve_workspace_file(workspace, rel)
+                    st.download_button(
+                        "Download",
+                        data=path.read_bytes(),
+                        file_name=name,
+                        mime="application/octet-stream",
+                        key=f"wb-ss-dl-{rel}",
+                        use_container_width=True,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+            with close:
+                if st.button("✕", key="wb-close-ss", help="Close file", use_container_width=True):
+                    _close_open_file()
+                    st.rerun()
         return
 
     actions: list[tuple[str, str, str]] = []
@@ -2052,6 +2095,7 @@ def _editor_header(workspace: Path, rel: str, *, dirty: bool, preview_kind: str 
     if dirty:
         actions.append(("save", "Save", "Save file"))
     actions.append(("more", "⋯", "More actions"))
+    actions.append(("close", "✕", "Close file"))
 
     with right:
         st.markdown('<div class="ca-wb-actions">', unsafe_allow_html=True)
@@ -2072,6 +2116,13 @@ def _editor_header(workspace: Path, rel: str, *, dirty: bool, preview_kind: str 
                 elif action == "save":
                     if st.button(label, key="wb-save", type="primary", help=help_text, use_container_width=True):
                         st.session_state.editor_pending_save = True
+                elif action == "close":
+                    if st.button(label, key="wb-close", help=help_text, use_container_width=True):
+                        if dirty:
+                            st.session_state.editor_close_confirm = True
+                        else:
+                            _close_open_file()
+                            st.rerun()
                 elif action == "more":
                     with st.popover(label, help=help_text):
                         if st.button("Reload", key="wb-reload"):
@@ -2096,6 +2147,16 @@ def _editor_header(workspace: Path, rel: str, *, dirty: bool, preview_kind: str 
             _save_editor_file(workspace, rel)
         if c3.button("Cancel", key="wb-save-no"):
             st.session_state.editor_pending_save = False
+            st.rerun()
+
+    if st.session_state.get("editor_close_confirm"):
+        c1, c2, c3 = st.columns([3, 1, 1])
+        c1.caption(f"Close `{name}` without saving?")
+        if c2.button("Close", key="wb-close-yes", type="primary"):
+            _close_open_file()
+            st.rerun()
+        if c3.button("Cancel", key="wb-close-no"):
+            st.session_state.editor_close_confirm = False
             st.rerun()
 
 
