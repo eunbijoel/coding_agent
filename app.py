@@ -600,6 +600,8 @@ def _init_state() -> None:
         st.session_state.test_results = []
     if "selected_file" not in st.session_state:
         st.session_state.selected_file = None
+    if "selected_folder" not in st.session_state:
+        st.session_state.selected_folder = None
     if "workspace" not in st.session_state:
         st.session_state.workspace = str(resolve_workspace())
     if "model" not in st.session_state:
@@ -961,6 +963,7 @@ def _go_new_chat() -> None:
     st.session_state.test_results = []
     st.session_state.pending_interrupt = None
     st.session_state.selected_file = None
+    st.session_state.selected_folder = None
     st.session_state.editor_draft_path = None
     st.session_state.editor_draft = ""
     st.session_state.editor_disk = ""
@@ -1534,12 +1537,17 @@ def _fe_open_index(items: list[TreeItem], expanded: set[str], selected: str | No
     return open_index
 
 
+def _path_under(path: str, root: str) -> bool:
+    return path == root or path.startswith(f"{root}/")
+
+
 def _handle_fe_tree_pick(picked: str | None) -> None:
     if not picked:
         return
     if picked.startswith(FE_FOLDER_PREFIX):
         rel = picked.removeprefix(FE_FOLDER_PREFIX)
         if rel == "workspace":
+            st.session_state.selected_folder = None
             return
         expanded = _expanded_dirs()
         if rel in expanded:
@@ -1547,7 +1555,10 @@ def _handle_fe_tree_pick(picked: str | None) -> None:
         else:
             expanded.add(rel)
         _set_expanded_dirs(expanded)
+        st.session_state.selected_folder = rel
+        st.rerun()
         return
+    st.session_state.selected_folder = None
     if st.session_state.selected_file != picked:
         st.session_state.selected_file = picked
         st.session_state.editor_force_reload = True
@@ -1561,6 +1572,11 @@ def _refresh_file_explorer(workspace: Path) -> None:
     if sel and sel not in files:
         st.session_state.selected_file = None
         st.session_state.editor_force_reload = True
+    folder = st.session_state.get("selected_folder")
+    if folder:
+        folder_path = _safe_workspace_path(workspace, folder)
+        if folder_path is None or not folder_path.is_dir():
+            st.session_state.selected_folder = None
     st.session_state.fe_pick_key = None
     st.session_state.fe_tree_nonce = int(st.session_state.get("fe_tree_nonce", 0)) + 1
 
@@ -1570,8 +1586,10 @@ def _file_explorer_tree(workspace: Path) -> None:
     items = _build_fe_tree_root(workspace)
     expanded = _expanded_dirs()
     selected = st.session_state.selected_file
-    open_index = _fe_open_index(items, expanded, selected)
-    sel_idx = _fe_selected_index(items, selected)
+    folder = st.session_state.get("selected_folder")
+    open_index = _fe_open_index(items, expanded, selected or folder)
+    tree_target = _fe_folder_value(folder) if folder else selected
+    sel_idx = _fe_selected_index(items, tree_target)
     nonce = int(st.session_state.get("fe_tree_nonce", 0))
     picked = sac.tree(
         items,
@@ -1593,28 +1611,36 @@ def _file_explorer_tree(workspace: Path) -> None:
     st.session_state.fe_pick_key = picked
 
 
-def _delete_selected_file(workspace: Path, target: str) -> None:
+def _delete_selected_path(workspace: Path, target: str) -> None:
     ok, err = delete_workspace_file(workspace, target)
     if not ok:
         st.session_state.fe_delete_error = err or "Delete failed"
         return
     st.session_state.fe_delete_error = None
     st.session_state.uploaded_files = [
-        p for p in st.session_state.uploaded_files if p != target
+        p for p in st.session_state.uploaded_files if not _path_under(p, target)
     ]
-    if st.session_state.selected_file == target:
+    sel = st.session_state.selected_file
+    if sel and _path_under(sel, target):
         st.session_state.selected_file = None
         st.session_state.editor_draft = ""
         st.session_state.editor_disk = ""
         st.session_state.editor_draft_path = None
         st.session_state.editor_force_reload = True
+    folder = st.session_state.get("selected_folder")
+    if folder and _path_under(folder, target):
+        st.session_state.selected_folder = None
     st.session_state.file_views = [
-        v for v in st.session_state.file_views if v.get("path") != target
+        v for v in st.session_state.file_views if not _path_under(str(v.get("path") or ""), target)
     ]
     st.session_state.file_changes = [
-        c for c in st.session_state.file_changes if c.get("path") != target
+        c for c in st.session_state.file_changes if not _path_under(str(c.get("path") or ""), target)
     ]
-    st.session_state.spreadsheet_sheet.pop(target, None)
+    st.session_state.spreadsheet_sheet = {
+        k: v for k, v in st.session_state.spreadsheet_sheet.items() if not _path_under(k, target)
+    }
+    expanded = _expanded_dirs()
+    _set_expanded_dirs({d for d in expanded if not _path_under(d, target)})
     if st.session_state.upload_status and Path(target).name in (
         st.session_state.upload_status or ""
     ):
@@ -1624,7 +1650,9 @@ def _delete_selected_file(workspace: Path, target: str) -> None:
 
 
 def _render_file_explorer(workspace: Path) -> None:
-    sel = st.session_state.selected_file
+    folder = st.session_state.get("selected_folder")
+    sel = folder or st.session_state.selected_file
+    is_folder = bool(folder)
     head_left, head_right = st.columns([5, 1], gap="small")
     with head_left:
         st.markdown('<div class="ca-section ca-fe-title">Files</div>', unsafe_allow_html=True)
@@ -1641,25 +1669,31 @@ def _render_file_explorer(workspace: Path) -> None:
         name = Path(sel).name
         row_l, row_r = st.columns([3, 2], gap="small")
         with row_l:
-            st.caption(name)
+            st.caption(f"{name}/" if is_folder else name)
         with row_r:
             if st.button(
                 "Delete",
                 key="fe-delete-btn",
                 type="secondary",
                 use_container_width=True,
-                help=f"Delete {name}",
+                help=f"Delete {'folder' if is_folder else 'file'} {name}",
             ):
                 st.session_state.fe_delete_target = sel
                 st.rerun()
 
     if st.session_state.fe_delete_target:
         target = st.session_state.fe_delete_target
-        st.warning(f"Delete `{Path(target).name}`?")
+        name = Path(target).name
+        target_path = _safe_workspace_path(workspace, target)
+        deleting_folder = bool(target_path and target_path.is_dir())
+        if deleting_folder:
+            st.warning(f"Delete folder `{name}` and everything inside?")
+        else:
+            st.warning(f"Delete `{name}`?")
         c_yes, c_no = st.columns(2, gap="small")
         with c_yes:
             if st.button("Confirm", key="fe-del-yes", type="primary", use_container_width=True):
-                _delete_selected_file(workspace, target)
+                _delete_selected_path(workspace, target)
                 st.rerun()
         with c_no:
             if st.button("Cancel", key="fe-del-no", use_container_width=True):

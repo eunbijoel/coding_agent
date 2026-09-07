@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import difflib
 import re
+import shutil
 import signal
 import socket
 import subprocess
@@ -82,15 +83,22 @@ def resolve_workspace_file(workspace: Path, rel: str) -> Path:
 
 
 def delete_workspace_file(workspace: Path, rel: str) -> tuple[bool, str | None]:
-    """Delete a file under workspace. Directories are refused."""
+    """Delete a file or directory under workspace (dirs removed recursively)."""
     try:
         path = resolve_workspace_file(workspace, rel)
     except PermissionError:
         return False, "Invalid path"
     except ValueError:
         return False, "Path must stay inside the workspace"
+    root = workspace.resolve()
+    if path == root:
+        return False, "Cannot delete the workspace root"
     if path.is_dir():
-        return False, "Only files can be deleted"
+        try:
+            shutil.rmtree(path)
+        except OSError:
+            return False, "Delete failed"
+        return True, None
     if not path.is_file():
         return False, "File not found"
     try:
