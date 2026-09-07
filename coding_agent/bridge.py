@@ -30,6 +30,7 @@ from coding_agent.config import (
 )
 from coding_agent.events import AgentEvent
 from coding_agent.spreadsheet import make_spreadsheet_tools
+from coding_agent.tools import create_excel_tools
 
 # Prove at import time that deepagents-code is the runtime dependency.
 import deepagents_code as _deepagents_code  # noqa: F401
@@ -39,9 +40,12 @@ USER_HINT = (
     "[Workbench] Prefer tools over guessing; reply in the user's language; "
     "after edits briefly explain what changed. When done, leave code in a "
     "runnable state. For Excel/CSV (.xlsx/.xls/.csv), use inspect_spreadsheet "
-    "and read_spreadsheet — do not use read_file on binary workbooks. Write "
-    "analysis outputs under workspace/outputs/ when the user asks to save "
-    "results.\n\n"
+    "for workbook structure (sheets, columns, bounded metadata) and "
+    "read_spreadsheet for a bounded row/column slice. Do not use read_file on "
+    "binary workbooks. When the user asks to summarize, compare, aggregate, "
+    "or otherwise analyze spreadsheet data, or wants a result workbook/chart, "
+    "use analyze_excel. Do not run Excel Analyzer via the execute shell, and "
+    "do not reimplement that production analysis in pandas.\n\n"
 )
 
 def normalize_model(model: str | None) -> str:
@@ -57,6 +61,18 @@ def normalize_model(model: str | None) -> str:
     }:
         return name
     return f"ollama:{name}"
+
+
+def workspace_agent_tools(workspace: Path) -> list:
+    """Spreadsheet inspection tools plus the dedicated analyze_excel tool."""
+    tools = [
+        *list(make_spreadsheet_tools(workspace)),
+        *list(create_excel_tools(workspace=workspace)),
+    ]
+    names = [getattr(tool, "name", "") for tool in tools]
+    if len(names) != len(set(names)):
+        raise ValueError(f"Duplicate agent tool names: {names}")
+    return tools
 
 
 def deepagents_version() -> str:
@@ -230,9 +246,13 @@ class DeepAgentsBridge:
                 enable_skills=False,
                 enable_shell=True,
                 checkpointer=self._checkpointer,
-                tools=make_spreadsheet_tools(self.workspace),
+                tools=workspace_agent_tools(self.workspace),
             )
         return self._agent
+
+    def reset_agent(self) -> None:
+        """Force recreate (e.g. after model / auto_approve change)."""
+        self._agent = None
 
     def _config(self, thread_id: str) -> dict[str, Any]:
         return {

@@ -89,6 +89,48 @@ streamlit run app.py
 - **Preview**는 파일 종류에 따라 동작이 다릅니다. `.md`는 Editor 탭, HTML/웹앱은 별도 프리뷰 모드입니다.
 - 바이너리 파일은 편집할 수 없습니다.
 
+## Excel Analyzer 연동 (custom tool)
+
+채팅 입력에서 Excel/CSV를 첨부하거나, workspace에 이미 있는 파일을 사용할 수 있습니다.
+
+역할 구분:
+
+- **inspect_spreadsheet / read_spreadsheet**: 시트·컬럼·일부 행 등 구조와 부분 확인 (Coding Agent 프로세스)
+- **analyze_excel**: 자연어 요약·비교·집계 및 Excel Analyzer production pipeline (전용 venv subprocess)
+- 채팅 업로드 **원본 파일 다운로드**와 분석 결과 **artifact 다운로드**는 다릅니다. 분석 결과 artifact UI는 아직 I2-C2에서 구현하지 않았습니다.
+- `analyze_excel` custom HITL은 아직 없고, I2-C1 실행 확인 UI가 필요합니다.
+
+Coding Agent는 Excel 분석을 위해 `excel_ai_analyzer`를 **별도 Python 가상환경 subprocess**로 호출합니다. `inspect_spreadsheet`, `read_spreadsheet`, `analyze_excel`이 함께 `create_cli_agent(tools=...)`에 등록되며, built-in `execute` shell은 Excel 호출에 사용하지 않습니다.
+
+최소 설정:
+
+```bash
+export CODING_AGENT_EXCEL_ROOT=/home/raven323/Project/excel_ai_analyzer
+export CODING_AGENT_EXCEL_PYTHON=/home/raven323/Project/excel_ai_analyzer/.venv/bin/python
+export CODING_AGENT_EXCEL_TIMEOUT=180
+export CODING_AGENT_EXCEL_OUTPUT_ROOT=/home/raven323/Project/coding_agent/workspace/.excel_agent
+```
+
+선택:
+
+```bash
+export CODING_AGENT_EXCEL_MODEL=qwen2.5:7b
+export CODING_AGENT_EXCEL_OLLAMA=http://localhost:11434
+```
+
+실행:
+
+```bash
+./run_app.sh --server.port 8503
+```
+
+사용 조건:
+
+- 분석할 Excel/CSV는 채팅 첨부(`.session_uploads/`) 또는 workspace에 이미 있는 파일 모두 가능합니다.
+- 채팅에서 workspace-relative path와 원래 분석 요청을 입력합니다. 요청 의미는 바꾸지 않습니다.
+
+자세한 설정·보안 경계는 [Excel integration](docs/excel_integration.md)을 참고하세요.
+
 
 
 ## 실행 환경 및 테스트 결과
