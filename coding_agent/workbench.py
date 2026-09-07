@@ -81,6 +81,25 @@ def resolve_workspace_file(workspace: Path, rel: str) -> Path:
     return target
 
 
+def delete_workspace_file(workspace: Path, rel: str) -> tuple[bool, str | None]:
+    """Delete a file under workspace. Directories are refused."""
+    try:
+        path = resolve_workspace_file(workspace, rel)
+    except PermissionError:
+        return False, "Invalid path"
+    except ValueError:
+        return False, "Path must stay inside the workspace"
+    if path.is_dir():
+        return False, "Only files can be deleted"
+    if not path.is_file():
+        return False, "File not found"
+    try:
+        path.unlink()
+    except OSError:
+        return False, "Delete failed"
+    return True, None
+
+
 def classify_file(path: Path) -> str:
     """Return 'text', 'binary', or 'missing'."""
     if not path.is_file():

@@ -20,6 +20,7 @@ from coding_agent.ollama_client import list_models
 from coding_agent.threads import ThreadStore
 from coding_agent.workbench import (
     classify_file,
+    delete_workspace_file,
     detect_preview_kind,
     poll_preview,
     poll_user_terminal,
@@ -664,6 +665,8 @@ def _init_state() -> None:
         st.session_state.upload_status = None
     if "pending_user_prompt" not in st.session_state:
         st.session_state.pending_user_prompt = None
+    if "fe_delete_target" not in st.session_state:
+        st.session_state.fe_delete_target = None
     ensure_upload_dirs(Path(st.session_state.workspace))
 
 
@@ -1582,13 +1585,63 @@ def _file_explorer_tree(workspace: Path) -> None:
 
 
 def _render_file_explorer(workspace: Path) -> None:
-    head_left, head_right = st.columns([5, 1], gap="small")
+    sel = st.session_state.selected_file
+    head_left, head_right = st.columns([4, 2], gap="small")
     with head_left:
         st.markdown('<div class="ca-section ca-fe-title">Files</div>', unsafe_allow_html=True)
     with head_right:
-        if st.button("↻", key="fe-refresh", help="Refresh file tree", type="tertiary"):
-            _refresh_file_explorer(workspace)
-            st.rerun()
+        act_cols = st.columns(2, gap="small")
+        with act_cols[0]:
+            if sel:
+                action = st.menu_button(
+                    "⋯",
+                    options=["Delete"],
+                    key="fe-file-menu",
+                    type="tertiary",
+                    help=f"Actions for {Path(sel).name}",
+                )
+                if action == "Delete":
+                    st.session_state.fe_delete_target = sel
+        with act_cols[1]:
+            if st.button("↻", key="fe-refresh", help="Refresh file tree", type="tertiary"):
+                _refresh_file_explorer(workspace)
+                st.rerun()
+
+    if st.session_state.fe_delete_target:
+        target = st.session_state.fe_delete_target
+        st.caption(f"Delete `{Path(target).name}`?")
+        c_yes, c_no = st.columns(2, gap="small")
+        with c_yes:
+            if st.button("Confirm", key="fe-del-yes", type="primary", use_container_width=True):
+                ok, err = delete_workspace_file(workspace, target)
+                if not ok:
+                    st.error(err or "Delete failed")
+                else:
+                    if target in st.session_state.uploaded_files:
+                        st.session_state.uploaded_files = [
+                            p for p in st.session_state.uploaded_files if p != target
+                        ]
+                    if st.session_state.selected_file == target:
+                        st.session_state.selected_file = None
+                        st.session_state.editor_force_reload = True
+                    st.session_state.file_views = [
+                        v for v in st.session_state.file_views if v.get("path") != target
+                    ]
+                    st.session_state.file_changes = [
+                        c for c in st.session_state.file_changes if c.get("path") != target
+                    ]
+                    st.session_state.spreadsheet_sheet.pop(target, None)
+                    if st.session_state.upload_status and Path(target).name in (
+                        st.session_state.upload_status or ""
+                    ):
+                        st.session_state.upload_status = None
+                    st.session_state.fe_delete_target = None
+                    _refresh_file_explorer(workspace)
+                    st.rerun()
+        with c_no:
+            if st.button("Cancel", key="fe-del-no", use_container_width=True):
+                st.session_state.fe_delete_target = None
+                st.rerun()
 
     children = _build_fe_tree_root(workspace)[0].children
     if not children:
