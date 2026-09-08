@@ -31,6 +31,13 @@ from coding_agent.config import (
 from coding_agent.integrations.excel_errors import TRANSPORT_CONFIGURATION_ERROR
 from coding_agent.integrations.excel_paths import path_is_inside
 
+# Product-approved Transform v1 policies. Not inferred from the user prompt.
+TRANSFORM_POLICIES: dict[str, str] = {
+    "group_scope": "include_descendants_and_subtotals",
+    "output_mode": "copy_with_new_sheet",
+    "unmerge_fill_policy": "fill_all",
+}
+
 
 @dataclass(frozen=True)
 class ExcelIntegrationConfig:

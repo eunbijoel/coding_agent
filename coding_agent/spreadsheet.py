@@ -418,6 +418,7 @@ def format_upload_context(paths: list[str]) -> str:
         "Use inspect_spreadsheet for workbook structure (sheets, columns, bounded metadata).",
         "Use read_spreadsheet for a bounded row/column slice.",
         "Use analyze_excel for natural-language summary, comparison, aggregation, or production analysis.",
+        "Use transform_excel to change a copy of one .xlsx workbook (extract/unmerge). Do not invent coordinates.",
         "Do not run Excel Analyzer via the execute shell; do not reimplement that analysis in pandas.",
         "Do not use read_file on .xlsx/.xls (binary).",
         "If multiple files exist and the user is unclear which one, ask for the filename.",

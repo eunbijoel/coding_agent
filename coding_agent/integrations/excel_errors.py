@@ -12,6 +12,7 @@ TRANSPORT_MALFORMED_RESPONSE = "malformed_response"
 TRANSPORT_PROTOCOL_MISMATCH = "protocol_mismatch"
 TRANSPORT_ARTIFACT_VALIDATION_FAILED = "artifact_validation_failed"
 TRANSPORT_EXCEL_RESPONSE = "excel_response"
+TRANSPORT_SOURCE_MUTATED = "source_mutated"
 
 TRANSPORT_CODES = frozenset(
     {
@@ -25,6 +26,7 @@ TRANSPORT_CODES = frozenset(
         TRANSPORT_PROTOCOL_MISMATCH,
         TRANSPORT_ARTIFACT_VALIDATION_FAILED,
         TRANSPORT_EXCEL_RESPONSE,
+        TRANSPORT_SOURCE_MUTATED,
     }
 )
 
@@ -43,6 +45,7 @@ EXCEL_STATUSES = frozenset(
 )
 
 ALLOWED_INPUT_EXTENSIONS = frozenset({".xlsx", ".xls", ".xlsm", ".csv"})
+TRANSFORM_ALLOWED_EXTENSIONS = frozenset({".xlsx"})
 ALLOWED_ANALYSIS_MODES = frozenset({"single", "multi"})
 ALLOWED_ARTIFACT_KINDS = frozenset({"table", "workbook", "chart"})
 ALLOWED_MEDIA_TYPES = {

@@ -10,6 +10,7 @@ import stat
 from coding_agent.integrations.excel_errors import (
     ALLOWED_ANALYSIS_MODES,
     ALLOWED_INPUT_EXTENSIONS,
+    TRANSFORM_ALLOWED_EXTENSIONS,
     TRANSPORT_INVALID_TOOL_INPUT,
     TRANSPORT_WORKSPACE_VIOLATION,
 )
@@ -82,6 +83,49 @@ def prepare_request_output_dir(output_root: Path, workspace: Path, request_id: s
         )
     root.mkdir(parents=True, exist_ok=True)
     return dest
+
+
+def prepare_transform_output_dir(output_root: Path, workspace: Path, request_id: str) -> Path:
+    """Create ``.excel_agent/<request-id>/`` and return that directory.
+
+    Analyze passes the output *root* to Excel Analyzer, which nests
+    ``<request-id>/`` itself. Transform passes this directory as
+    ``output_directory`` so the executor writes
+    ``<request-id>_transformed.xlsx`` directly under it (no extra nesting).
+    """
+    dest = prepare_request_output_dir(output_root, workspace, request_id)
+    dest.mkdir(parents=False, exist_ok=False)
+    return dest
+
+
+def validate_transform_inputs(
+    *,
+    workspace: Path,
+    files: list[str] | None,
+    prompt: str | None,
+) -> ValidatedInput:
+    if not isinstance(prompt, str) or not prompt.strip():
+        raise PathValidationError(
+            TRANSPORT_INVALID_TOOL_INPUT,
+            "prompt is required and must be a non-empty string.",
+        )
+    if not isinstance(files, list):
+        raise PathValidationError(
+            TRANSPORT_INVALID_TOOL_INPUT,
+            "files must be a list of workspace paths.",
+        )
+    if len(files) != 1:
+        raise PathValidationError(
+            TRANSPORT_INVALID_TOOL_INPUT,
+            "transform_excel requires exactly one .xlsx file.",
+        )
+    return _validate_one_file(
+        workspace=workspace,
+        raw=files[0],
+        index=0,
+        sheet=0,
+        allowed_extensions=TRANSFORM_ALLOWED_EXTENSIONS,
+    )
 
 
 def validate_tool_inputs(
@@ -202,6 +246,7 @@ def _validate_one_file(
     raw: Any,
     index: int,
     sheet: str | int,
+    allowed_extensions: frozenset[str] | None = None,
 ) -> ValidatedInput:
     if not isinstance(raw, str) or not raw.strip():
         raise PathValidationError(
@@ -246,7 +291,8 @@ def _validate_one_file(
             f"files[{index}] is not a regular file.",
         )
     suffix = resolved.suffix.lower()
-    if suffix not in ALLOWED_INPUT_EXTENSIONS:
+    allowed = allowed_extensions if allowed_extensions is not None else ALLOWED_INPUT_EXTENSIONS
+    if suffix not in allowed:
         raise PathValidationError(
             TRANSPORT_INVALID_TOOL_INPUT,
             f"Unsupported file extension: {suffix or resolved.name!r}.",

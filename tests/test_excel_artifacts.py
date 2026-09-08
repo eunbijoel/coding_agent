@@ -109,3 +109,47 @@ def test_validation_failure_workbook_blocked(workspace: Path) -> None:
     )
     assert verified == []
     assert "Workbook artifacts are blocked" in rejected[0]["reason"]
+
+
+def test_request_dir_containment_and_source_alias(workspace: Path) -> None:
+    request_dir = workspace / ".excel_agent" / "req"
+    inside = write_bytes(request_dir / "out.xlsx", b"abc")
+    outside = write_bytes(workspace / "other.xlsx", b"abc")
+    source = write_bytes(workspace / "source.xlsx", b"abc")
+    verified, rejected = validate_artifacts(
+        workspace=workspace,
+        artifacts=[_manifest(inside, kind="workbook")],
+        excel_status="success",
+        containment_root=request_dir,
+        source_paths=[source],
+        workbook_only_on_success=True,
+    )
+    assert rejected == []
+    assert verified
+    verified, rejected = validate_artifacts(
+        workspace=workspace,
+        artifacts=[_manifest(outside, kind="workbook")],
+        excel_status="success",
+        containment_root=request_dir,
+        workbook_only_on_success=True,
+    )
+    assert verified == []
+    assert "request output directory" in rejected[0]["reason"]
+    verified, rejected = validate_artifacts(
+        workspace=workspace,
+        artifacts=[_manifest(source, kind="workbook")],
+        excel_status="success",
+        containment_root=workspace,
+        source_paths=[source],
+        workbook_only_on_success=True,
+    )
+    assert verified == []
+    assert "source" in rejected[0]["reason"]
+    verified, rejected = validate_artifacts(
+        workspace=workspace,
+        artifacts=[_manifest(inside, kind="workbook")],
+        excel_status="cannot_plan",
+        workbook_only_on_success=True,
+    )
+    assert verified == []
+    assert "Workbook artifacts are blocked" in rejected[0]["reason"]

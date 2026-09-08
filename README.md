@@ -97,10 +97,11 @@ streamlit run app.py
 
 - **inspect_spreadsheet / read_spreadsheet**: 시트·컬럼·일부 행 등 구조와 부분 확인 (Coding Agent 프로세스)
 - **analyze_excel**: 자연어 요약·비교·집계 및 Excel Analyzer production pipeline (전용 venv subprocess)
+- **transform_excel**: 원본을 보존한 `.xlsx` 복사본에서 추출/병합 해제 등 workbook 변경 (전용 venv subprocess). 좌표는 Coding Agent가 만들지 않습니다.
 - 채팅 업로드 **원본 파일 다운로드**와 분석 결과 **artifact 다운로드**는 다릅니다. 분석 결과 artifact UI는 아직 I2-C2에서 구현하지 않았습니다.
-- `analyze_excel` custom HITL은 아직 없고, I2-C1 실행 확인 UI가 필요합니다.
+- `analyze_excel` / `transform_excel` custom HITL은 아직 없고, I2-C1 실행 확인 UI가 필요합니다.
 
-Coding Agent는 Excel 분석을 위해 `excel_ai_analyzer`를 **별도 Python 가상환경 subprocess**로 호출합니다. `inspect_spreadsheet`, `read_spreadsheet`, `analyze_excel`이 함께 `create_cli_agent(tools=...)`에 등록되며, built-in `execute` shell은 Excel 호출에 사용하지 않습니다.
+Coding Agent는 Excel 분석·변환을 위해 `excel_ai_analyzer`를 **별도 Python 가상환경 subprocess**로 호출합니다. `inspect_spreadsheet`, `read_spreadsheet`, `analyze_excel`, `transform_excel`이 함께 `create_cli_agent(tools=...)`에 등록되며, built-in `execute` shell은 Excel 호출에 사용하지 않습니다.
 
 최소 설정:
 

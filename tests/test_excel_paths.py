@@ -12,7 +12,9 @@ from coding_agent.integrations.excel_paths import (
     PathValidationError,
     ValidatedInput,
     ensure_unique_inputs,
+    prepare_transform_output_dir,
     validate_tool_inputs,
+    validate_transform_inputs,
 )
 from tests.conftest import write_bytes
 
@@ -165,3 +167,31 @@ def test_invalid_sheet_type(workspace: Path) -> None:
     with pytest.raises(PathValidationError) as exc:
         _ok(workspace, ["a.xlsx"], sheets=[True])
     assert "sheets[0]" in exc.value.message
+
+
+def test_transform_requires_single_xlsx(workspace: Path) -> None:
+    write_bytes(workspace / "data.xlsx")
+    write_bytes(workspace / "table.csv", b"a,b\n1,2\n")
+    item = validate_transform_inputs(
+        workspace=workspace, files=["data.xlsx"], prompt="extract rows"
+    )
+    assert item.path.suffix == ".xlsx"
+    with pytest.raises(PathValidationError) as extra:
+        validate_transform_inputs(
+            workspace=workspace, files=["data.xlsx", "data.xlsx"], prompt="extract"
+        )
+    assert extra.value.error_code == TRANSPORT_INVALID_TOOL_INPUT
+    with pytest.raises(PathValidationError) as csv:
+        validate_transform_inputs(workspace=workspace, files=["table.csv"], prompt="extract")
+    assert "Unsupported file extension" in csv.value.message
+
+
+def test_transform_output_dir_refuses_overwrite(workspace: Path) -> None:
+    output_root = workspace / ".excel_agent"
+    dest = output_root / "abc123"
+    dest.mkdir(parents=True)
+    (dest / "keep.txt").write_text("keep", encoding="utf-8")
+    with pytest.raises(PathValidationError) as exc:
+        prepare_transform_output_dir(output_root, workspace, "abc123")
+    assert "already exists" in exc.value.message
+    assert (dest / "keep.txt").read_text(encoding="utf-8") == "keep"
