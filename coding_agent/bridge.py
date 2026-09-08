@@ -44,8 +44,11 @@ USER_HINT = (
     "read_spreadsheet for a bounded row/column slice. Do not use read_file on "
     "binary workbooks. When the user asks to summarize, compare, aggregate, "
     "or otherwise analyze spreadsheet data, or wants a result workbook/chart, "
-    "use analyze_excel. Do not run Excel Analyzer via the execute shell, and "
-    "do not reimplement that production analysis in pandas.\n\n"
+    "use analyze_excel. When the user asks to change a workbook copy — extract "
+    "rows or columns onto a new sheet, unmerge cells, or similar structural "
+    "edits — use transform_excel with the user's request as prompt. Do not "
+    "invent Excel coordinates, do not run Excel Analyzer via the execute "
+    "shell, and do not reimplement that production work in pandas.\n\n"
 )
 
 def normalize_model(model: str | None) -> str:
@@ -64,7 +67,7 @@ def normalize_model(model: str | None) -> str:
 
 
 def workspace_agent_tools(workspace: Path) -> list:
-    """Spreadsheet inspection tools plus the dedicated analyze_excel tool."""
+    """Spreadsheet inspection tools plus dedicated Excel Analyzer tools."""
     tools = [
         *list(make_spreadsheet_tools(workspace)),
         *list(create_excel_tools(workspace=workspace)),

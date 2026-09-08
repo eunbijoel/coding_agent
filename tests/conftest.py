@@ -25,6 +25,7 @@ FAKE_CLI_SOURCE = textwrap.dedent(
     r"""
     from __future__ import annotations
 
+    import hashlib
     import json
     import os
     import sys
@@ -96,15 +97,51 @@ FAKE_CLI_SOURCE = textwrap.dedent(
         if mode == "missing_module":
             print("No module named core.application", file=sys.stderr)
             return 1
+        if mode in {
+            "cannot_plan",
+            "model_unavailable",
+            "timeout",
+            "invalid_request",
+            "execution_failed",
+            "cancelled",
+        }:
+            payload = _payload(request_id, status=mode, text=mode)
+            json.dump(payload, sys.stdout, ensure_ascii=False)
+            sys.stdout.write("\n")
+            return 0
 
         payload = _payload(request_id, status="success", text="ok")
         artifacts = os.environ.get("FAKE_EXCEL_ARTIFACTS")
         if artifacts:
             payload["artifacts"] = json.loads(artifacts)
+        if os.environ.get("FAKE_EXCEL_WRITE_TRANSFORM"):
+            payload["artifacts"] = _write_transform_artifact(request, request_id)
         json.dump(payload, sys.stdout, ensure_ascii=False)
         sys.stdout.write("\n")
         print("INFO core.application.cli: done", file=sys.stderr)
         return 0
+
+
+    def _write_transform_artifact(request, request_id):
+        out_dir = str(request.get("output_directory") or "")
+        if not out_dir:
+            return []
+        os.makedirs(out_dir, exist_ok=True)
+        dest = os.path.join(out_dir, f"{request_id}_transformed.xlsx")
+        data = b"fake-xlsx-bytes"
+        with open(dest, "wb") as handle:
+            handle.write(data)
+        return [
+            {
+                "artifact_id": "workbook-1",
+                "kind": "workbook",
+                "path": dest,
+                "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "filename": os.path.basename(dest),
+                "size_bytes": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+        ]
 
 
     def _payload(request_id, status="success", text="ok"):

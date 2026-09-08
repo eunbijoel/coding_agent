@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import stat
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 from coding_agent.integrations.excel_errors import (
     ALLOWED_ARTIFACT_KINDS,
@@ -28,6 +28,9 @@ def validate_artifacts(
     workspace: Path,
     artifacts: Any,
     excel_status: str,
+    containment_root: Path | None = None,
+    source_paths: Sequence[Path] | None = None,
+    workbook_only_on_success: bool = False,
 ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     """Return (verified artifacts, rejection records).
 
@@ -42,7 +45,10 @@ def validate_artifacts(
         return verified, [{"reason": "artifacts must be a list", "artifact_id": ""}]
 
     seen_paths: set[Path] = set()
-    block_workbooks = excel_status == "validation_failed"
+    blocked_sources = {_resolved(path) for path in (source_paths or ()) if path is not None}
+    block_workbooks = excel_status == "validation_failed" or (
+        workbook_only_on_success and excel_status != "success"
+    )
     for index, raw in enumerate(artifacts):
         artifact_id = _artifact_id(raw, index)
         ok, payload, reason = _validate_one(
@@ -51,6 +57,8 @@ def validate_artifacts(
             index=index,
             seen_paths=seen_paths,
             block_workbooks=block_workbooks,
+            containment_root=containment_root,
+            blocked_sources=blocked_sources,
         )
         if ok and payload is not None:
             seen_paths.add(Path(payload["path"]))
@@ -79,6 +87,8 @@ def _validate_one(
     index: int,
     seen_paths: set[Path],
     block_workbooks: bool,
+    containment_root: Path | None = None,
+    blocked_sources: set[Path] | None = None,
 ) -> tuple[bool, dict[str, Any] | None, str]:
     if not isinstance(raw, dict):
         return False, None, f"artifacts[{index}] must be an object."
@@ -102,6 +112,10 @@ def _validate_one(
         return False, None, "Artifact path must not be a symlink."
     if not path_is_inside(workspace, resolved):
         return False, None, "Artifact path is outside the Coding Agent workspace."
+    if containment_root is not None and not path_is_inside(containment_root, resolved):
+        return False, None, "Artifact path is outside the request output directory."
+    if blocked_sources and resolved in blocked_sources:
+        return False, None, "Artifact path must not alias the source workbook."
     if resolved in seen_paths:
         return False, None, "Duplicate artifact path."
     if not resolved.exists():
@@ -144,3 +158,10 @@ def _validate_one(
         "size_bytes": info.st_size,
         "sha256": actual_hash,
     }, ""
+
+
+def _resolved(path: Path) -> Path:
+    try:
+        return path.resolve()
+    except OSError:
+        return path

@@ -1,11 +1,11 @@
-# Excel Analyzer integration (Phase I2-B / I2-R1)
+# Excel Analyzer integration (Phase I2-B / I2-R1 / I2-D3D)
 
 Coding Agent treats `excel_ai_analyzer` as an Excel specialist capability. The
 analyzer is **not imported** into the Coding Agent process. Production analysis
-goes through a repository-owned `analyze_excel` tool and a dedicated subprocess
-client. Chat Excel/CSV upload, input preview, original-file download, and
-Files explorer delete remain remote UI features. Structure inspection uses
-`inspect_spreadsheet` / `read_spreadsheet`.
+and natural-language workbook transforms go through repository-owned tools and
+a dedicated subprocess client. Chat Excel/CSV upload, input preview,
+original-file download, and Files explorer delete remain remote UI features.
+Structure inspection uses `inspect_spreadsheet` / `read_spreadsheet`.
 
 ## Runtime path
 
@@ -14,15 +14,18 @@ Coding Agent Streamlit UI
   → chat upload (.session_uploads) and/or existing workspace files
   → DeepAgentsBridge
     → create_cli_agent(
-         tools=inspect_spreadsheet + read_spreadsheet + analyze_excel,
+         tools=inspect_spreadsheet + read_spreadsheet
+               + analyze_excel + transform_excel,
          enable_shell=True
        )
       → inspect_spreadsheet / read_spreadsheet  (structure, bounded rows)
       → analyze_excel custom tool
+      → transform_excel custom tool
         → dedicated subprocess (process group)
           → excel_ai_analyzer venv: python -m core.application.cli
             → JSON stdout / diagnostic stderr
-            → request-scoped workspace/.excel_agent/<uuid>/
+            → Analyze: workspace/.excel_agent/<uuid>/ nested by Analyzer
+            → Transform: workspace/.excel_agent/<uuid>/ passed as output_directory
 ```
 
 This host is a Linux server. Timeout handling uses `start_new_session=True`
@@ -62,6 +65,11 @@ files already in the workspace.
 - `analyze_excel(files, prompt, analysis_mode="single", profile_name="generic", sheets=None)`:
   natural-language summary, comparison, aggregation, multi-file analysis, and
   Excel Analyzer production pipeline
+- `transform_excel(files, prompt)`: copy-preserving workbook changes (extract to
+  a new sheet, unmerge). v1 accepts exactly one `.xlsx`. The user prompt is
+  forwarded unchanged. Coding Agent does not invent coordinates. Product
+  policies (`include_descendants_and_subtotals`, `copy_with_new_sheet`,
+  `fill_all`) are set by the adapter and cannot be overridden by the model.
 
 `analyze_excel` notes:
 
@@ -70,21 +78,31 @@ files already in the workspace.
 - The user prompt is forwarded unchanged. Coding Agent does not rewrite it or
   pick a profile from keywords.
 - Output directory is not a tool argument. Each call writes under
-  `.excel_agent/<request-id>/`.
+  `.excel_agent/<request-id>/` **created by Excel Analyzer** under the output root.
 - Original uploaded files stay in `.session_uploads/`. Analysis artifacts are a
   separate output tree. Artifact rendering/download UI is not implemented yet
   (I2-C2).
+
+`transform_excel` notes:
+
+- Output directory is not a tool argument. Coding Agent creates
+  `.excel_agent/<request-id>/` and passes that directory as CLI
+  `output_directory`. Excel Analyzer writes `<request-id>_transformed.xlsx`
+  directly under it (no extra nested request folder).
+- The source workbook is not modified.
+- Custom HITL is not present (same deepagents-code 0.1.65 limitation as Analyze).
 
 ## Boundaries
 
 - Built-in filesystem and `execute` tools remain available for non-Excel work.
   Do not use `execute` to run Excel Analyzer CLI.
-- Do not reimplement production semantic analysis with pandas in Coding Agent.
-- Excel semantic routing stays in `excel_ai_analyzer`.
+- Do not reimplement production semantic analysis or coordinate planning with
+  pandas in Coding Agent.
+- Excel semantic routing and transform planning stay in `excel_ai_analyzer`.
 - Coding Agent validates paths, runs the process, enforces timeout, checks the
   JSON contract, and verifies artifact hashes/sizes/workspace containment.
 - HITL: `deepagents-code==0.1.65` does not expose a public `create_cli_agent`
   API to interrupt custom `tools=` callables. Excel execution is constrained by
-  workspace containment instead. Custom `analyze_excel` HITL is not present;
-  I2-C1 execution-confirm UI is still required. Do not assume an approval
-  prompt for this tool.
+  workspace containment instead. Custom `analyze_excel` / `transform_excel` HITL
+  is not present; I2-C1 execution-confirm UI is still required. Do not assume an
+  approval prompt for these tools.

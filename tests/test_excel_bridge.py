@@ -5,12 +5,13 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from coding_agent.bridge import DeepAgentsBridge, workspace_agent_tools
-from coding_agent.tools.excel_tool import ANALYZE_EXCEL_NAME
+from coding_agent.tools.excel_tool import ANALYZE_EXCEL_NAME, TRANSFORM_EXCEL_NAME
 
 REQUIRED_TOOL_NAMES = {
     "inspect_spreadsheet",
     "read_spreadsheet",
     ANALYZE_EXCEL_NAME,
+    TRANSFORM_EXCEL_NAME,
 }
 
 
@@ -23,6 +24,7 @@ def _assert_combined_tools(tools) -> None:
     assert names.count("inspect_spreadsheet") == 1
     assert names.count("read_spreadsheet") == 1
     assert names.count(ANALYZE_EXCEL_NAME) == 1
+    assert names.count(TRANSFORM_EXCEL_NAME) == 1
     assert len(names) == len(set(names))
     assert REQUIRED_TOOL_NAMES <= set(names)
 

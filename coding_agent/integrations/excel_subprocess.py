@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from coding_agent.integrations.excel_config import ExcelIntegrationConfig
+from coding_agent.integrations.excel_config import ExcelIntegrationConfig, TRANSFORM_POLICIES
 from coding_agent.integrations.excel_errors import (
     DIAGNOSTIC_LIMIT,
     EXCEL_CONTRACT_VERSION,
@@ -92,6 +92,31 @@ def build_analyze_request(
         },
         "timeout_seconds": config.timeout_seconds,
         "output_directory": str(output_directory.resolve()),
+    }
+
+
+def build_transform_request(
+    *,
+    config: ExcelIntegrationConfig,
+    request_id: str,
+    source: ValidatedInput,
+    prompt: str,
+    output_directory: Path,
+) -> dict[str, Any]:
+    """Natural-language TransformPromptRequest. Does not emit coordinates."""
+    return {
+        "contract_version": EXCEL_CONTRACT_VERSION,
+        "request_id": request_id,
+        "operation": "transform",
+        "source": {"path": str(source.path)},
+        "user_prompt": prompt,
+        "timeout_seconds": config.timeout_seconds,
+        "model": {
+            "base_url": config.ollama_base_url,
+            "name": config.model_name,
+        },
+        "output_directory": str(Path(output_directory).resolve()),
+        "policies": dict(TRANSFORM_POLICIES),
     }
 
 

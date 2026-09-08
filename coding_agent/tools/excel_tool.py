@@ -14,8 +14,8 @@ from typing import Any
 
 from langchain_core.tools import BaseTool, StructuredTool
 
-from coding_agent.integrations.excel_artifacts import validate_artifacts
-from coding_agent.integrations.excel_config import load_excel_config
+from coding_agent.integrations.excel_artifacts import sha256_file, validate_artifacts
+from coding_agent.integrations.excel_config import TRANSFORM_POLICIES, load_excel_config
 from coding_agent.integrations.excel_errors import (
     CELL_CHAR_LIMIT,
     PREVIEW_COLUMN_LIMIT,
@@ -24,15 +24,19 @@ from coding_agent.integrations.excel_errors import (
     TRANSPORT_ARTIFACT_VALIDATION_FAILED,
     TRANSPORT_CONFIGURATION_ERROR,
     TRANSPORT_EXCEL_RESPONSE,
+    TRANSPORT_SOURCE_MUTATED,
 )
 from coding_agent.integrations.excel_paths import (
     PathValidationError,
     new_request_id,
     prepare_request_output_dir,
+    prepare_transform_output_dir,
     validate_tool_inputs,
+    validate_transform_inputs,
 )
 from coding_agent.integrations.excel_subprocess import (
     build_analyze_request,
+    build_transform_request,
     run_excel_cli,
 )
 
@@ -64,10 +68,37 @@ The result is Excel Analyzer's existing production router output. Coding Agent \
 does not reinterpret, correct, or replace that analysis.
 """
 
+TRANSFORM_EXCEL_NAME = "transform_excel"
+
+TRANSFORM_EXCEL_DESCRIPTION = """\
+Transform one Excel workbook that already exists in the Coding Agent workspace.
+
+Use this tool when the user wants a copy of a workbook with structural changes \
+such as extracting rows/columns onto a new sheet or unmerging cells. The \
+original file is never overwritten. For summary, comparison, aggregation, or \
+analysis results, use analyze_excel instead. For structure or a bounded row \
+slice, use inspect_spreadsheet or read_spreadsheet.
+
+Files may already be in the workspace, including chat attachments under \
+.session_uploads/. Pass workspace-relative paths or absolute paths inside that \
+workspace. This tool does not upload files.
+
+v1 accepts exactly one .xlsx file. prompt is the user's natural-language \
+request and is forwarded unchanged to Excel Analyzer. Do not rewrite it, and \
+do not invent sheet/row/column coordinates here. Do not run Excel Analyzer \
+via the execute shell.
+
+The result is a bounded JSON status plus a verified copy workbook when \
+transformation succeeds.
+"""
+
 
 def create_excel_tools(*, workspace: Path) -> list[BaseTool]:
     """Factory used by DeepAgentsBridge. Re-run on agent reset."""
-    return [build_analyze_excel_tool(workspace)]
+    return [
+        build_analyze_excel_tool(workspace),
+        build_transform_excel_tool(workspace),
+    ]
 
 
 def build_analyze_excel_tool(workspace: Path) -> StructuredTool:
@@ -94,6 +125,27 @@ def build_analyze_excel_tool(workspace: Path) -> StructuredTool:
         func=analyze_excel,
         name=ANALYZE_EXCEL_NAME,
         description=ANALYZE_EXCEL_DESCRIPTION,
+    )
+
+
+def build_transform_excel_tool(workspace: Path) -> StructuredTool:
+    workspace_path = Path(workspace)
+
+    def transform_excel(
+        files: list[str],
+        prompt: str,
+    ) -> str:
+        return run_transform_excel(
+            workspace=workspace_path,
+            files=files,
+            prompt=prompt,
+        )
+
+    transform_excel.__doc__ = TRANSFORM_EXCEL_DESCRIPTION
+    return StructuredTool.from_function(
+        func=transform_excel,
+        name=TRANSFORM_EXCEL_NAME,
+        description=TRANSFORM_EXCEL_DESCRIPTION,
     )
 
 
@@ -154,6 +206,80 @@ def run_analyze_excel(
     return format_tool_result(_client_to_tool_dict(workspace, client, prompt=prompt))
 
 
+def run_transform_excel(
+    *,
+    workspace: Path,
+    files: list[str],
+    prompt: str,
+) -> str:
+    loaded = load_excel_config(workspace)
+    if not loaded.ok or loaded.config is None:
+        return format_tool_result(
+            {
+                "ok": False,
+                "error_code": loaded.error_code or TRANSPORT_CONFIGURATION_ERROR,
+                "request_id": None,
+                "status": None,
+                "message": loaded.message,
+            }
+        )
+
+    config = loaded.config
+    try:
+        source = validate_transform_inputs(workspace=workspace, files=files, prompt=prompt)
+        request_id = _allocate_request_id(config.output_root, workspace)
+        output_directory = prepare_transform_output_dir(
+            config.output_root, workspace, request_id
+        )
+    except PathValidationError as exc:
+        return format_tool_result(
+            {
+                "ok": False,
+                "error_code": exc.error_code,
+                "request_id": None,
+                "status": None,
+                "message": exc.message,
+            }
+        )
+
+    source_sha = sha256_file(source.path)
+    request = build_transform_request(
+        config=config,
+        request_id=request_id,
+        source=source,
+        prompt=prompt,
+        output_directory=output_directory,
+    )
+    # Policies are product defaults on this adapter. The model cannot override them.
+    request["policies"] = dict(TRANSFORM_POLICIES)
+    client = run_excel_cli(config, request)
+    try:
+        after_sha = sha256_file(source.path)
+    except OSError:
+        after_sha = ""
+    if after_sha != source_sha:
+        return format_tool_result(
+            {
+                "ok": False,
+                "error_code": TRANSPORT_SOURCE_MUTATED,
+                "request_id": request_id,
+                "status": None,
+                "message": "Source workbook changed during transformation.",
+                "artifacts": [],
+            }
+        )
+    return format_tool_result(
+        _client_to_tool_dict(
+            workspace,
+            client,
+            prompt=prompt,
+            containment_root=output_directory,
+            source_paths=(source.path,),
+            workbook_only_on_success=True,
+        )
+    )
+
+
 def format_tool_result(payload: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=False, default=str)
 
@@ -170,7 +296,15 @@ def _allocate_request_id(output_root: Path, workspace: Path) -> str:
     )
 
 
-def _client_to_tool_dict(workspace: Path, client, *, prompt: str) -> dict[str, Any]:
+def _client_to_tool_dict(
+    workspace: Path,
+    client,
+    *,
+    prompt: str,
+    containment_root: Path | None = None,
+    source_paths: tuple[Path, ...] | None = None,
+    workbook_only_on_success: bool = False,
+) -> dict[str, Any]:
     # prompt is accepted only so tests can prove it is not rewritten. It is not
     # substituted into the Excel response text.
     del prompt
@@ -194,6 +328,9 @@ def _client_to_tool_dict(workspace: Path, client, *, prompt: str) -> dict[str, A
         workspace=workspace,
         artifacts=payload.get("artifacts"),
         excel_status=excel_status,
+        containment_root=containment_root,
+        source_paths=source_paths,
+        workbook_only_on_success=workbook_only_on_success,
     )
     error_code = None
     ok = excel_status == "success" and not rejected
