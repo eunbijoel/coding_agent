@@ -1570,8 +1570,12 @@ def _refresh_file_explorer(workspace: Path) -> None:
     files = set(_list_workspace_files(workspace))
     sel = st.session_state.selected_file
     if sel and sel not in files:
-        st.session_state.selected_file = None
-        st.session_state.editor_force_reload = True
+        # Chat attachments live under .session_uploads/ (hidden from the tree).
+        # Keep selection when the file still exists on disk.
+        path = _safe_workspace_path(workspace, sel)
+        if path is None or not path.is_file():
+            st.session_state.selected_file = None
+            st.session_state.editor_force_reload = True
     folder = st.session_state.get("selected_folder")
     if folder:
         folder_path = _safe_workspace_path(workspace, folder)
@@ -1579,6 +1583,51 @@ def _refresh_file_explorer(workspace: Path) -> None:
             st.session_state.selected_folder = None
     st.session_state.fe_pick_key = None
     st.session_state.fe_tree_nonce = int(st.session_state.get("fe_tree_nonce", 0)) + 1
+
+
+def _open_workspace_file(rel: str) -> None:
+    """Select a workspace file for the right-pane preview/editor."""
+    if not rel:
+        return
+    st.session_state.selected_folder = None
+    st.session_state.selected_file = rel
+    st.session_state.editor_force_reload = True
+    st.session_state.wb_preview_mode = False
+    st.session_state.wb_show_diff = False
+    st.session_state.fe_delete_target = None
+    _expand_parent_dirs(rel)
+
+
+def _existing_session_uploads(workspace: Path) -> list[str]:
+    out: list[str] = []
+    for rel in _current_upload_paths(workspace):
+        path = _safe_workspace_path(workspace, rel)
+        if path is not None and path.is_file():
+            out.append(rel)
+    return out
+
+
+def _render_session_upload_openers(
+    workspace: Path, *, key_prefix: str, caption: str | None = None
+) -> None:
+    """Clickable openers for chat-attached spreadsheets (not shown in Files tree)."""
+    paths = _existing_session_uploads(workspace)
+    if not paths:
+        return
+    if caption:
+        st.caption(caption)
+    cols = st.columns(min(len(paths), 3))
+    for i, rel in enumerate(paths):
+        with cols[i % len(cols)]:
+            label = Path(rel).name
+            if st.button(
+                label,
+                key=f"{key_prefix}-{i}-{rel.replace('/', '_')}",
+                use_container_width=True,
+                help=f"Open preview · {rel}",
+            ):
+                _open_workspace_file(rel)
+                st.rerun()
 
 
 def _file_explorer_tree(workspace: Path) -> None:
@@ -1701,10 +1750,16 @@ def _render_file_explorer(workspace: Path) -> None:
                 st.rerun()
 
     children = _build_fe_tree_root(workspace)[0].children
-    if not children:
+    _render_session_upload_openers(
+        workspace,
+        key_prefix="fe-attach",
+        caption="Chat attachments (click to preview)",
+    )
+    if not children and not _existing_session_uploads(workspace):
         st.caption("Empty workspace")
         return
-    _file_explorer_tree(workspace)
+    if children:
+        _file_explorer_tree(workspace)
 
 
 def _process_chat_uploads(workspace: Path, files: list) -> list[str]:
@@ -1727,10 +1782,7 @@ def _process_chat_uploads(workspace: Path, files: list) -> list[str]:
                 st.session_state.uploaded_files.append(rel)
             st.session_state.upload_seen_ids.add(file_id)
             st.session_state.upload_status = f"Attached · {result['name']}"
-            st.session_state.selected_file = rel
-            st.session_state.editor_force_reload = True
-            st.session_state.wb_preview_mode = False
-            st.session_state.wb_show_diff = False
+            _open_workspace_file(rel)
             _expand_parent_dirs(rel)
             saved.append(rel)
         except Exception as exc:  # noqa: BLE001
@@ -1997,7 +2049,8 @@ def _approval_panel(bridge: DeepAgentsBridge) -> None:
 
 
 def _render_chat_history() -> None:
-    for msg in st.session_state.messages:
+    workspace = Path(st.session_state.workspace)
+    for idx, msg in enumerate(st.session_state.messages):
         role = msg.get("role", "assistant")
         if role == "tool":
             with st.chat_message("assistant"):
@@ -2007,10 +2060,21 @@ def _render_chat_history() -> None:
                 path = _tool_path_hint(args)
                 label = _compact_tool_label(name)
                 status = "Completed" if ok else "Failed"
-                line = f"{label} — {status}"
                 if path:
-                    line = f"{label} · `{path}` — {status}"
-                st.caption(line)
+                    st.caption(f"{label} — {status}")
+                    path_obj = _safe_workspace_path(workspace, path)
+                    can_open = path_obj is not None and path_obj.is_file()
+                    btn_label = Path(path).name if can_open else path
+                    if st.button(
+                        f"Open · {btn_label}",
+                        key=f"chat-open-{idx}-{path.replace('/', '_')}",
+                        disabled=not can_open,
+                        help=path,
+                    ):
+                        _open_workspace_file(path)
+                        st.rerun()
+                else:
+                    st.caption(f"{label} — {status}")
         else:
             with st.chat_message(role):
                 st.markdown(msg.get("content") or "")
@@ -2427,9 +2491,11 @@ def main() -> None:
 
         if st.session_state.upload_status:
             st.caption(st.session_state.upload_status)
-        recent = list(st.session_state.uploaded_files[-3:])
-        if recent:
-            st.caption("Attached · " + " · ".join(Path(p).name for p in recent))
+        _render_session_upload_openers(
+            workspace,
+            key_prefix="chat-attach",
+            caption="Attached (click to preview on the right)",
+        )
 
         if not blocked:
             raw = st.chat_input(
