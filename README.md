@@ -4,6 +4,8 @@ Streamlit기반 코딩 워크벤치. **에이전트 엔진은 [deepagents-code](
 
 모델: Ollama `gemma4:31b`
 
+> English README: [README.en.md](README.en.md)
+
 ## 구조
 
 ```mermaid
