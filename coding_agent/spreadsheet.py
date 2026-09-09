@@ -415,8 +415,13 @@ def format_upload_context(paths: list[str]) -> str:
     lines = [
         "[Session spreadsheet attachments — workspace-relative paths]",
         "These files are temporary for this chat (not kept in uploads/).",
-        "Use inspect_spreadsheet / read_spreadsheet to read data.",
-        "Do not use read_file on .xlsx/.xls (binary). Prefer outputs under workspace/outputs/.",
+        "Prefer inspect_spreadsheet for workbook structure (sheets, columns, metadata).",
+        "Prefer read_spreadsheet for a bounded row/column slice.",
+        "Use analyze_excel only for natural-language summary, comparison, or aggregation.",
+        "Use transform_excel for extract_to_sheet / unmerge_cells on a copy (never mutate originals).",
+        "Excel results are saved under outputs/excel_agent/ and show up in Files for download.",
+        "Do not run Excel Analyzer via the execute shell; do not reimplement that analysis in pandas.",
+        "Do not use read_file on .xlsx/.xls (binary).",
         "If multiple files exist and the user is unclear which one, ask for the filename.",
         "",
     ]
@@ -430,10 +435,10 @@ def make_spreadsheet_tools(workspace: Path):
 
     @tool
     def inspect_spreadsheet(path: str) -> str:
-        """Inspect an Excel/CSV file under the workspace.
+        """Inspect workbook structure: sheet names, columns, and bounded metadata.
 
         Args:
-            path: Workspace-relative path (e.g. uploads/sales.xlsx).
+            path: Workspace-relative path (e.g. .session_uploads/sales.xlsx).
         """
         try:
             data = inspect_spreadsheet_data(workspace, path)
@@ -449,10 +454,10 @@ def make_spreadsheet_tools(workspace: Path):
         start_row: int = 0,
         max_rows: int = DEFAULT_READ_ROWS,
     ) -> str:
-        """Read a limited row range from an Excel/CSV file under the workspace.
+        """Read a bounded row/column slice from an Excel/CSV file under the workspace.
 
         Args:
-            path: Workspace-relative path (e.g. uploads/sales.xlsx).
+            path: Workspace-relative path (e.g. .session_uploads/sales.xlsx).
             sheet: Sheet name for Excel (ignored for CSV). Defaults to first sheet.
             columns: Optional list of column names to include.
             start_row: 0-based start row.
