@@ -10,7 +10,6 @@ from typing import Any, Sequence
 from coding_agent.integrations.excel_errors import (
     ALLOWED_ARTIFACT_KINDS,
     ALLOWED_MEDIA_TYPES,
-    TRANSPORT_ARTIFACT_VALIDATION_FAILED,
 )
 from coding_agent.integrations.excel_paths import path_is_inside, workspace_relative
 
@@ -66,12 +65,6 @@ def validate_artifacts(
         else:
             rejected.append({"artifact_id": artifact_id, "reason": reason})
     return verified, rejected
-
-
-def artifact_validation_error_code(rejected: list[dict[str, str]]) -> str | None:
-    if rejected:
-        return TRANSPORT_ARTIFACT_VALIDATION_FAILED
-    return None
 
 
 def _artifact_id(raw: Any, index: int) -> str:

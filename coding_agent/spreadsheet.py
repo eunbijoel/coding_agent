@@ -398,17 +398,6 @@ def preview_spreadsheet(
         return {"ok": False, "error": str(exc)}
 
 
-def list_upload_relpaths(workspace: Path) -> list[str]:
-    uploads = workspace / UPLOAD_DIR
-    if not uploads.is_dir():
-        return []
-    out: list[str] = []
-    for p in sorted(uploads.iterdir()):
-        if p.is_file() and is_spreadsheet_path(p):
-            out.append(str(p.relative_to(workspace.resolve())))
-    return out
-
-
 def format_upload_context(paths: list[str]) -> str:
     if not paths:
         return ""
