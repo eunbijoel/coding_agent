@@ -80,15 +80,6 @@ streamlit run app.py
 | **Terminal** | 하단 접이식 — 명령 입력, Run/Stop, History (에이전트 shell과 별도)                                           |
 
 
-
-
-### Limitations:
-
-- **Terminal**은 PTY가 아닙니다. `input()` 같은 대화형 입력은 지원하지 않습니다.
-- Header **▶ Run**은 `python3 '<file>'`을 Terminal에서 실행합니다. 소스에 `input()`이 있으면 경고만 표시하고 자동 실행하지 않습니다.
-- **Preview**는 파일 종류에 따라 동작이 다릅니다. `.md`는 Editor 탭, HTML/웹앱은 별도 프리뷰 모드입니다.
-- 바이너리 파일은 편집할 수 없습니다.
-
 ## Excel Analyzer 연동 (custom tool)
 
 채팅 입력에서 Excel/CSV를 첨부하거나, workspace에 이미 있는 파일을 사용할 수 있습니다.
@@ -112,36 +103,25 @@ export CODING_AGENT_EXCEL_TIMEOUT=180
 export CODING_AGENT_EXCEL_OUTPUT_ROOT=<project-root>/workspace/outputs/excel_agent
 ```
 
-선택:
-
-```bash
-export CODING_AGENT_EXCEL_MODEL=qwen2.5:7b
-export CODING_AGENT_EXCEL_OLLAMA=http://localhost:11434
-```
-
-실행:
-
-```bash
-./run_app.sh --server.port 8503
-```
-
-사용 조건:
-
-- 분석할 Excel/CSV는 채팅 첨부(`.session_uploads/`) 또는 workspace에 이미 있는 파일 모두 가능합니다.
 - 구조 확인은 inspect/read, 요약·집계는 analyze_excel, 시트 추출·병합 해제는 transform_excel을 사용합니다.
 
 자세한 설정·보안 경계는 [Excel integration](docs/excel_integration.md)을 참고하세요.
 
-
-
-## 실행 환경 및 테스트 결과
+## 실행 환경 및 테스트 예시
 
 상세 실행 방법, 시스템 규격, 테스트 프롬프트와 측정 결과는
 [실행·검증 가이드](EXECUTION_GUIDE.md)를 참고하세요.
+
+### Limitations:
+
+- **Terminal**은 PTY가 아닙니다. `input()` 같은 대화형 입력은 지원하지 않습니다.
+- Header **▶ Run**은 `python3 '<file>'`을 Terminal에서 실행합니다. 소스에 `input()`이 있으면 경고만 표시하고 자동 실행하지 않습니다.
+- **Preview**는 파일 종류에 따라 동작이 다릅니다. `.md`는 Editor 탭, HTML/웹앱은 별도 프리뷰 모드입니다.
+- 바이너리 파일은 편집할 수 없습니다.
 
 ## 참고
 
 - [https://pypi.org/project/deepagents-code/](https://pypi.org/project/deepagents-code/)
 - [https://github.com/FeynmanZhou/tasking-agent](https://github.com/FeynmanZhou/tasking-agent) (DeepAgentsBridge / 이벤트 정규화 UX)
-- 이후 `research-memory` Coding Agent 페이지로 추가 예정
+- Excel Analyzer subprocess integration: [Jihei-Boun](https://github.com/Jihei-Boun) (`excel_ai_analyzer` / I2 integrate)
 
