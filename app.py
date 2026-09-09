@@ -1750,16 +1750,10 @@ def _render_file_explorer(workspace: Path) -> None:
                 st.rerun()
 
     children = _build_fe_tree_root(workspace)[0].children
-    _render_session_upload_openers(
-        workspace,
-        key_prefix="fe-attach",
-        caption="Chat attachments (click to preview)",
-    )
-    if not children and not _existing_session_uploads(workspace):
+    if not children:
         st.caption("Empty workspace")
         return
-    if children:
-        _file_explorer_tree(workspace)
+    _file_explorer_tree(workspace)
 
 
 def _process_chat_uploads(workspace: Path, files: list) -> list[str]:
