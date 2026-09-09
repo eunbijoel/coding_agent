@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from __future__ import annotations
-
 import hashlib
 from pathlib import Path
 
@@ -25,19 +23,19 @@ def _manifest(path: Path, *, kind: str = "table", artifact_id: str = "a1", size=
 
 
 def test_valid_artifact(workspace: Path) -> None:
-    path = write_bytes(workspace / ".excel_agent" / "req" / "out.xlsx", b"abc")
+    path = write_bytes(workspace / "outputs/excel_agent" / "req" / "out.xlsx", b"abc")
     verified, rejected = validate_artifacts(
         workspace=workspace,
         artifacts=[_manifest(path)],
         excel_status="success",
     )
     assert rejected == []
-    assert verified[0]["workspace_relative_path"] == ".excel_agent/req/out.xlsx"
+    assert verified[0]["workspace_relative_path"] == "outputs/excel_agent/req/out.xlsx"
     assert verified[0]["sha256"] == sha256_file(path)
 
 
 def test_missing_artifact(workspace: Path) -> None:
-    missing = workspace / ".excel_agent" / "req" / "gone.xlsx"
+    missing = workspace / "outputs/excel_agent" / "req" / "gone.xlsx"
     payload = _manifest(write_bytes(workspace / "tmp.xlsx"))
     payload["path"] = str(missing)
     verified, rejected = validate_artifacts(
@@ -112,7 +110,7 @@ def test_validation_failure_workbook_blocked(workspace: Path) -> None:
 
 
 def test_request_dir_containment_and_source_alias(workspace: Path) -> None:
-    request_dir = workspace / ".excel_agent" / "req"
+    request_dir = workspace / "outputs/excel_agent" / "req"
     inside = write_bytes(request_dir / "out.xlsx", b"abc")
     outside = write_bytes(workspace / "other.xlsx", b"abc")
     source = write_bytes(workspace / "source.xlsx", b"abc")

@@ -36,7 +36,7 @@ def _bind(monkeypatch, tmp_path: Path, workspace: Path, *, write_artifact: bool 
         root=root,
         python=Path(__import__("sys").executable),
         timeout="5",
-        output_root=workspace / ".excel_agent",
+        output_root=workspace / "outputs/excel_agent",
     )
     monkeypatch.setenv("FAKE_EXCEL_DUMP", str(dump))
     if write_artifact:
@@ -79,9 +79,9 @@ def test_xlsx_exactly_one_success(monkeypatch, tmp_path: Path, workspace: Path) 
     assert dumped["source"]["path"] == str(source.resolve())
     assert dumped["timeout_seconds"] == 5.0 or dumped["timeout_seconds"] == 5
     rel = Path(dumped["output_directory"]).resolve().relative_to(workspace.resolve())
-    assert rel.parts[0] == ".excel_agent"
-    assert len(rel.parts) == 2
-    assert dumped["request_id"] == rel.parts[1]
+    assert rel.parts[:2] == ("outputs", "excel_agent")
+    assert len(rel.parts) == 3
+    assert dumped["request_id"] == rel.parts[2]
     nested = Path(dumped["output_directory"]) / dumped["request_id"]
     assert not nested.exists()
     assert sha256_file(source) == before
@@ -93,7 +93,22 @@ def test_xlsx_exactly_one_success(monkeypatch, tmp_path: Path, workspace: Path) 
     assert Path(artifact["path"]).resolve() != source.resolve()
 
 
-def test_zero_and_multiple_files_rejected(workspace: Path) -> None:
+def test_zero_and_multiple_files_rejected(
+    monkeypatch, tmp_path: Path, workspace: Path
+) -> None:
+    import sys
+
+    from tests.conftest import bind_excel_env, clear_excel_env, install_fake_excel_root
+
+    clear_excel_env(monkeypatch)
+    excel_root = install_fake_excel_root(tmp_path / "excel")
+    bind_excel_env(
+        monkeypatch,
+        root=excel_root,
+        python=Path(sys.executable),
+        timeout="5",
+        output_root=workspace / "outputs" / "excel_agent",
+    )
     write_bytes(workspace / "a.xlsx")
     write_bytes(workspace / "b.xlsx")
     empty = json.loads(run_transform_excel(workspace=workspace, files=[], prompt="extract rows"))
@@ -157,7 +172,7 @@ def test_preexisting_output_dir_not_overwritten(monkeypatch, tmp_path: Path, wor
     _bind(monkeypatch, tmp_path, workspace)
     write_bytes(workspace / "data.xlsx")
     request_id = "a" * 32
-    dest = workspace / ".excel_agent" / request_id
+    dest = workspace / "outputs/excel_agent" / request_id
     dest.mkdir(parents=True)
     sentinel = dest / "keep.txt"
     sentinel.write_text("keep", encoding="utf-8")

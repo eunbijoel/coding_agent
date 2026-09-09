@@ -95,21 +95,21 @@ streamlit run app.py
 
 역할 구분:
 
-- **inspect_spreadsheet / read_spreadsheet**: 시트·컬럼·일부 행 등 구조와 부분 확인 (Coding Agent 프로세스)
-- **analyze_excel**: 자연어 요약·비교·집계 및 Excel Analyzer production pipeline (전용 venv subprocess)
-- **transform_excel**: 원본을 보존한 `.xlsx` 복사본에서 추출/병합 해제 등 workbook 변경 (전용 venv subprocess). 좌표는 Coding Agent가 만들지 않습니다.
-- 채팅 업로드 **원본 파일 다운로드**와 분석 결과 **artifact 다운로드**는 다릅니다. 분석 결과 artifact UI는 아직 I2-C2에서 구현하지 않았습니다.
-- `analyze_excel` / `transform_excel` custom HITL은 아직 없고, I2-C1 실행 확인 UI가 필요합니다.
+- **inspect_spreadsheet / read_spreadsheet**: 시트·컬럼·일부 행 등 구조와 부분 확인 (**기본 우선**, Coding Agent 프로세스)
+- **analyze_excel**: 자연어 요약·비교·집계 (전용 Analyzer venv subprocess)
+- **transform_excel**: 원본 보존 복사본에서 `extract_to_sheet` / `unmerge_cells` (전용 subprocess). 좌표는 Coding Agent가 만들지 않습니다.
+- 결과 파일은 `workspace/outputs/excel_agent/`에 저장되며 **Files Explorer에서 열고 Download**할 수 있습니다.
+- 기존 shell/write HITL·Auto-approve는 유지됩니다. Excel custom tool 전용 HITL은 없습니다.
 
-Coding Agent는 Excel 분석·변환을 위해 `excel_ai_analyzer`를 **별도 Python 가상환경 subprocess**로 호출합니다. `inspect_spreadsheet`, `read_spreadsheet`, `analyze_excel`, `transform_excel`이 함께 `create_cli_agent(tools=...)`에 등록되며, built-in `execute` shell은 Excel 호출에 사용하지 않습니다.
+Coding Agent는 `excel_ai_analyzer`를 **별도 Python 가상환경 subprocess**로 호출합니다. Analyzer 설정이 잘못되어도 앱은 기동하며, Excel tool만 `configuration_error`를 반환합니다.
 
 최소 설정:
 
 ```bash
-export CODING_AGENT_EXCEL_ROOT=/home/raven323/Project/excel_ai_analyzer
-export CODING_AGENT_EXCEL_PYTHON=/home/raven323/Project/excel_ai_analyzer/.venv/bin/python
+export CODING_AGENT_EXCEL_ROOT=<excel-analyzer-root>
+export CODING_AGENT_EXCEL_PYTHON=<excel-analyzer-root>/.venv/bin/python
 export CODING_AGENT_EXCEL_TIMEOUT=180
-export CODING_AGENT_EXCEL_OUTPUT_ROOT=/home/raven323/Project/coding_agent/workspace/.excel_agent
+export CODING_AGENT_EXCEL_OUTPUT_ROOT=<project-root>/workspace/outputs/excel_agent
 ```
 
 선택:
@@ -128,7 +128,7 @@ export CODING_AGENT_EXCEL_OLLAMA=http://localhost:11434
 사용 조건:
 
 - 분석할 Excel/CSV는 채팅 첨부(`.session_uploads/`) 또는 workspace에 이미 있는 파일 모두 가능합니다.
-- 채팅에서 workspace-relative path와 원래 분석 요청을 입력합니다. 요청 의미는 바꾸지 않습니다.
+- 구조 확인은 inspect/read, 요약·집계는 analyze_excel, 시트 추출·병합 해제는 transform_excel을 사용합니다.
 
 자세한 설정·보안 경계는 [Excel integration](docs/excel_integration.md)을 참고하세요.
 

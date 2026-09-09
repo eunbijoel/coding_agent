@@ -30,7 +30,7 @@ def _source(workspace: Path) -> ValidatedInput:
 
 def test_build_transform_request_contract(workspace: Path) -> None:
     config = fake_config(excel_root=workspace, workspace=workspace)
-    output = workspace / ".excel_agent" / "abc123"
+    output = workspace / "outputs/excel_agent" / "abc123"
     output.mkdir(parents=True)
     prompt = "한글 원문 그대로"
     request = build_transform_request(
@@ -72,7 +72,7 @@ def test_transform_cli_dumps_and_status(monkeypatch, tmp_path: Path, workspace: 
     dump = tmp_path / "req.json"
     monkeypatch.setenv("FAKE_EXCEL_DUMP", str(dump))
     config = fake_config(excel_root=root, workspace=workspace, python=Path(sys.executable))
-    output = workspace / ".excel_agent" / "rid"
+    output = workspace / "outputs/excel_agent" / "rid"
     output.mkdir(parents=True)
     request = build_transform_request(
         config=config,
@@ -95,7 +95,7 @@ def test_transform_cli_dumps_and_status(monkeypatch, tmp_path: Path, workspace: 
 def test_excel_application_statuses_preserved(monkeypatch, tmp_path: Path, workspace: Path) -> None:
     root = install_fake_excel_root(tmp_path / "excel")
     config = fake_config(excel_root=root, workspace=workspace, python=Path(sys.executable))
-    output = workspace / ".excel_agent" / "rid"
+    output = workspace / "outputs/excel_agent" / "rid"
     output.mkdir(parents=True)
     source = _source(workspace)
     for status in (
@@ -127,7 +127,7 @@ def test_transform_malformed_and_timeout_are_transport(
     config = fake_config(
         excel_root=root, workspace=workspace, python=Path(sys.executable), timeout_seconds=0.8
     )
-    output = workspace / ".excel_agent" / "rid"
+    output = workspace / "outputs/excel_agent" / "rid"
     output.mkdir(parents=True)
     source = _source(workspace)
     request = build_transform_request(
@@ -156,7 +156,7 @@ def test_unicode_transform_prompt(monkeypatch, tmp_path: Path, workspace: Path) 
     monkeypatch.setenv("FAKE_EXCEL_DUMP", str(dump))
     monkeypatch.setenv("FAKE_EXCEL_MODE", "unicode")
     config = fake_config(excel_root=root, workspace=workspace, python=Path(sys.executable))
-    output = workspace / ".excel_agent" / "rid"
+    output = workspace / "outputs/excel_agent" / "rid"
     output.mkdir(parents=True)
     request = build_transform_request(
         config=config,

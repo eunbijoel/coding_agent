@@ -39,16 +39,18 @@ from deepagents_code.agent import create_cli_agent
 USER_HINT = (
     "[Workbench] Prefer tools over guessing; reply in the user's language; "
     "after edits briefly explain what changed. When done, leave code in a "
-    "runnable state. For Excel/CSV (.xlsx/.xls/.csv), use inspect_spreadsheet "
-    "for workbook structure (sheets, columns, bounded metadata) and "
+    "runnable state. For Excel/CSV (.xlsx/.xls/.csv): first use "
+    "inspect_spreadsheet for structure (sheets, columns, metadata) and "
     "read_spreadsheet for a bounded row/column slice. Do not use read_file on "
-    "binary workbooks. When the user asks to summarize, compare, aggregate, "
-    "or otherwise analyze spreadsheet data, or wants a result workbook/chart, "
-    "use analyze_excel. When the user asks to change a workbook copy — extract "
-    "rows or columns onto a new sheet, unmerge cells, or similar structural "
-    "edits — use transform_excel with the user's request as prompt. Do not "
-    "invent Excel coordinates, do not run Excel Analyzer via the execute "
-    "shell, and do not reimplement that production work in pandas.\n\n"
+    "binary workbooks. Use analyze_excel only when the user wants natural-language "
+    "summary, comparison, aggregation, or a production analysis result. Use "
+    "transform_excel when the user wants a copy with extract_to_sheet (rows/"
+    "columns onto a new sheet) or unmerge_cells (fill unmerged cells). Never "
+    "modify the original workbook; results land under outputs/excel_agent/ and "
+    "appear in Files for download. Do not invent Excel coordinates, do not run "
+    "Excel Analyzer via the execute shell, and do not reimplement that work in "
+    "pandas. If Excel Analyzer is misconfigured, report the tool error without "
+    "claiming the whole app failed.\n\n"
 )
 
 def normalize_model(model: str | None) -> str:

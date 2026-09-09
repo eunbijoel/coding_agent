@@ -234,7 +234,7 @@ def fake_config(
         excel_root=excel_root,
         python_executable=python or Path(sys.executable),
         timeout_seconds=timeout_seconds,
-        output_root=workspace / ".excel_agent",
+        output_root=workspace / "outputs/excel_agent",
         model_name="qwen2.5:7b",
         ollama_base_url="http://localhost:11434",
     )

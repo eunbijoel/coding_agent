@@ -25,7 +25,7 @@ def test_explicit_valid_config(monkeypatch, tmp_path: Path, workspace: Path) -> 
     assert result.config.excel_root == root.resolve()
     assert result.config.python_executable == python
     assert result.config.timeout_seconds == 90
-    assert result.config.output_root == (workspace / ".excel_agent").resolve()
+    assert result.config.output_root == (workspace / "outputs/excel_agent").resolve()
     assert result.config.model_name == DEFAULT_EXCEL_MODEL
 
 

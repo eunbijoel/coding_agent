@@ -53,7 +53,7 @@ def test_prompt_passed_unchanged(monkeypatch, tmp_path: Path, workspace: Path) -
         root=root,
         python=Path(__import__("sys").executable),
         timeout="5",
-        output_root=workspace / ".excel_agent",
+        output_root=workspace / "outputs/excel_agent",
     )
     monkeypatch.setenv("FAKE_EXCEL_DUMP", str(dump))
     write_bytes(workspace / "data.xlsx")
@@ -81,7 +81,7 @@ def test_profile_not_auto_selected(monkeypatch, tmp_path: Path, workspace: Path)
         root=root,
         python=Path(__import__("sys").executable),
         timeout="5",
-        output_root=workspace / ".excel_agent",
+        output_root=workspace / "outputs/excel_agent",
     )
     monkeypatch.setenv("FAKE_EXCEL_DUMP", str(dump))
     write_bytes(workspace / "budget.xlsx")

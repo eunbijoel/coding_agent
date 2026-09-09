@@ -23,7 +23,8 @@ EXCEL_OLLAMA_ENV = "CODING_AGENT_EXCEL_OLLAMA"
 DEFAULT_EXCEL_TIMEOUT_SECONDS = 180.0
 MIN_EXCEL_TIMEOUT_SECONDS = 1.0
 MAX_EXCEL_TIMEOUT_SECONDS = 86_400.0
-DEFAULT_EXCEL_OUTPUT_DIRNAME = ".excel_agent"
+# Visible under Files explorer (dot-dirs are hidden). Unique request subdirs refuse overwrite.
+DEFAULT_EXCEL_OUTPUT_DIRNAME = "outputs/excel_agent"
 # Matches excel_ai_analyzer production defaults without importing that package.
 DEFAULT_EXCEL_MODEL = "qwen2.5:7b"
 DEFAULT_EXCEL_OLLAMA = "http://localhost:11434"

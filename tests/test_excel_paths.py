@@ -187,7 +187,7 @@ def test_transform_requires_single_xlsx(workspace: Path) -> None:
 
 
 def test_transform_output_dir_refuses_overwrite(workspace: Path) -> None:
-    output_root = workspace / ".excel_agent"
+    output_root = workspace / "outputs/excel_agent"
     dest = output_root / "abc123"
     dest.mkdir(parents=True)
     (dest / "keep.txt").write_text("keep", encoding="utf-8")

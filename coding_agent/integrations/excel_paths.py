@@ -86,7 +86,7 @@ def prepare_request_output_dir(output_root: Path, workspace: Path, request_id: s
 
 
 def prepare_transform_output_dir(output_root: Path, workspace: Path, request_id: str) -> Path:
-    """Create ``.excel_agent/<request-id>/`` and return that directory.
+    """Create ``outputs/excel_agent/<request-id>/`` and return that directory.
 
     Analyze passes the output *root* to Excel Analyzer, which nests
     ``<request-id>/`` itself. Transform passes this directory as

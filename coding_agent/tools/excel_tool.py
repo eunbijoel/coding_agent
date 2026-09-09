@@ -45,10 +45,10 @@ ANALYZE_EXCEL_NAME = "analyze_excel"
 ANALYZE_EXCEL_DESCRIPTION = """\
 Analyze Excel or CSV files that already exist in the Coding Agent workspace.
 
-Use this tool when the user wants spreadsheet summary, comparison, aggregation, \
-quality checks, or a result workbook/chart from Excel Analyzer production. \
-It is not a general code-generation or code-editing tool. For structure or a \
-bounded row slice, use inspect_spreadsheet or read_spreadsheet instead.
+Prefer inspect_spreadsheet / read_spreadsheet for structure or a bounded row \
+slice. Use this tool when the user wants natural-language summary, comparison, \
+aggregation, quality checks, or a result workbook/chart from Excel Analyzer. \
+It is not a general code-generation or code-editing tool.
 
 Files may already be in the workspace, including chat attachments under \
 .session_uploads/. Pass workspace-relative paths or absolute paths inside that \
@@ -64,8 +64,9 @@ Excel Analyzer. Do not rewrite it here.
 profile_name is an explicit Excel Analyzer profile. Default is generic. \
 Do not auto-select a profile from the prompt.
 
-The result is Excel Analyzer's existing production router output. Coding Agent \
-does not reinterpret, correct, or replace that analysis.
+Results are written under outputs/excel_agent/ (visible in Files) as a copy; \
+originals are never modified. Coding Agent does not reinterpret Excel Analyzer \
+output.
 """
 
 TRANSFORM_EXCEL_NAME = "transform_excel"
@@ -73,23 +74,18 @@ TRANSFORM_EXCEL_NAME = "transform_excel"
 TRANSFORM_EXCEL_DESCRIPTION = """\
 Transform one Excel workbook that already exists in the Coding Agent workspace.
 
-Use this tool when the user wants a copy of a workbook with structural changes \
-such as extracting rows/columns onto a new sheet or unmerging cells. The \
-original file is never overwritten. For summary, comparison, aggregation, or \
-analysis results, use analyze_excel instead. For structure or a bounded row \
-slice, use inspect_spreadsheet or read_spreadsheet.
+Use this tool for copy-preserving structural changes such as extract_to_sheet \
+(rows/columns onto a new sheet) or unmerge_cells (unmerge and fill each cell). \
+The original file is never overwritten. Results are saved under \
+outputs/excel_agent/ with a new request directory (never silently overwritten) \
+and appear in Files for preview/download.
 
-Files may already be in the workspace, including chat attachments under \
-.session_uploads/. Pass workspace-relative paths or absolute paths inside that \
-workspace. This tool does not upload files.
+For summary, comparison, aggregation, or analysis results, use analyze_excel. \
+For structure or a bounded row slice, use inspect_spreadsheet or read_spreadsheet.
 
 v1 accepts exactly one .xlsx file. prompt is the user's natural-language \
-request and is forwarded unchanged to Excel Analyzer. Do not rewrite it, and \
-do not invent sheet/row/column coordinates here. Do not run Excel Analyzer \
-via the execute shell.
-
-The result is a bounded JSON status plus a verified copy workbook when \
-transformation succeeds.
+request and is forwarded unchanged. Do not invent sheet/row/column coordinates. \
+Do not run Excel Analyzer via the execute shell.
 """
 
 
@@ -378,7 +374,7 @@ def _request_output_directory(
         except ValueError:
             return str(parent)
     if request_id:
-        return f".excel_agent/{request_id}"
+        return f"outputs/excel_agent/{request_id}"
     return None
 
 

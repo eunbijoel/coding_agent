@@ -45,7 +45,7 @@ def test_session_upload_path_is_valid_analyze_excel_input(
         root=root,
         python=Path(sys.executable),
         timeout="5",
-        output_root=workspace / ".excel_agent",
+        output_root=workspace / "outputs/excel_agent",
     )
     raw = run_analyze_excel(
         workspace=workspace,
@@ -60,8 +60,8 @@ def test_session_upload_path_is_valid_analyze_excel_input(
     request_id = str(payload["request_id"])
     assert request_id
     output_dir = payload.get("output_directory")
-    assert output_dir == f".excel_agent/{request_id}"
-    excel_root = (workspace / ".excel_agent").resolve()
+    assert output_dir == f"outputs/excel_agent/{request_id}"
+    excel_root = (workspace / "outputs/excel_agent").resolve()
     assert excel_root.is_dir()
     assert excel_root.is_relative_to(workspace.resolve())
     assert uploaded.read_bytes() == csv_bytes

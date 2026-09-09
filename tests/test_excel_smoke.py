@@ -27,7 +27,7 @@ def _excel_ready(workspace: Path) -> tuple[bool, str]:
 def test_phase_i1_cli_deterministic_smoke(tmp_path: Path, monkeypatch) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
-    monkeypatch.setenv("CODING_AGENT_EXCEL_OUTPUT_ROOT", str(workspace / ".excel_agent"))
+    monkeypatch.setenv("CODING_AGENT_EXCEL_OUTPUT_ROOT", str(workspace / "outputs/excel_agent"))
     ready, reason = _excel_ready(workspace)
     if not ready:
         pytest.skip(f"Excel Analyzer environment is not available: {reason}")
@@ -57,7 +57,7 @@ def test_phase_i1_cli_deterministic_smoke(tmp_path: Path, monkeypatch) -> None:
     preview = payload.get("preview") or {}
     assert text or preview.get("preview_records") or preview.get("columns")
     assert "컬럼" in text or "이 파일" in text
-    request_dir = (workspace / ".excel_agent" / str(payload["request_id"])).resolve()
+    request_dir = (workspace / "outputs/excel_agent" / str(payload["request_id"])).resolve()
     assert request_dir.is_dir()
     assert request_dir.is_relative_to(workspace.resolve())
     for artifact in payload.get("artifacts") or []:
