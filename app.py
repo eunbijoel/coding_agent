@@ -41,7 +41,7 @@ from coding_agent.spreadsheet import (
     format_upload_context,
     is_spreadsheet_path as is_spreadsheet_file,
     preview_spreadsheet,
-    save_session_upload,
+    save_upload,
 )
 
 st.set_page_config(
@@ -978,6 +978,8 @@ def _go_new_chat() -> None:
     st.session_state.uploaded_files = []
     st.session_state.upload_seen_ids = set()
     st.session_state.upload_status = None
+    # Chat attachments now live under uploads/ and are kept across chats.
+    # Still wipe any leftover legacy .session_uploads/ files.
     try:
         clear_session_uploads(resolve_workspace())
     except Exception:  # noqa: BLE001
@@ -1578,8 +1580,7 @@ def _refresh_file_explorer(workspace: Path) -> None:
     files = set(_list_workspace_files(workspace))
     sel = st.session_state.selected_file
     if sel and sel not in files:
-        # Chat attachments live under .session_uploads/ (hidden from the tree).
-        # Keep selection when the file still exists on disk.
+        # Keep selection when the file still exists on disk (e.g. brief tree lag).
         path = _safe_workspace_path(workspace, sel)
         if path is None or not path.is_file():
             st.session_state.selected_file = None
@@ -1618,7 +1619,7 @@ def _existing_session_uploads(workspace: Path) -> list[str]:
 def _render_session_upload_openers(
     workspace: Path, *, key_prefix: str, caption: str | None = None
 ) -> None:
-    """Clickable openers for chat-attached spreadsheets (not shown in Files tree)."""
+    """Clickable openers for chat-attached spreadsheets under uploads/."""
     paths = _existing_session_uploads(workspace)
     if not paths:
         return
@@ -1765,7 +1766,7 @@ def _render_file_explorer(workspace: Path) -> None:
 
 
 def _process_chat_uploads(workspace: Path, files: list) -> list[str]:
-    """Save chat-attached Excel/CSV into ephemeral .session_uploads/ (not uploads/)."""
+    """Save chat-attached Excel/CSV under workspace/uploads/ (kept across chats)."""
     saved: list[str] = []
     for item in files:
         file_id = getattr(item, "file_id", None) or f"{item.name}:{getattr(item, 'size', 0)}"
@@ -1774,7 +1775,7 @@ def _process_chat_uploads(workspace: Path, files: list) -> list[str]:
             continue
         try:
             data = item.getvalue()
-            result = save_session_upload(
+            result = save_upload(
                 workspace,
                 filename=item.name,
                 data=data,
@@ -1783,7 +1784,7 @@ def _process_chat_uploads(workspace: Path, files: list) -> list[str]:
             if rel not in st.session_state.uploaded_files:
                 st.session_state.uploaded_files.append(rel)
             st.session_state.upload_seen_ids.add(file_id)
-            st.session_state.upload_status = f"Attached · {result['name']}"
+            st.session_state.upload_status = f"Saved · {rel}"
             _open_workspace_file(rel)
             _expand_parent_dirs(rel)
             saved.append(rel)
@@ -1797,7 +1798,7 @@ def _process_chat_uploads(workspace: Path, files: list) -> list[str]:
 
 
 def _current_upload_paths(workspace: Path) -> list[str]:
-    """Session chat attachments only (no permanent uploads/ scan)."""
+    """Chat attachments saved this session (under uploads/)."""
     paths: list[str] = []
     seen: set[str] = set()
     for p in list(st.session_state.uploaded_files):

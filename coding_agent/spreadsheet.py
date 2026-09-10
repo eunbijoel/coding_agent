@@ -117,8 +117,7 @@ def save_upload(
 ) -> dict[str, Any]:
     """Save upload bytes under workspace/uploads/. Returns relative path info.
 
-    Prefer :func:`save_session_upload` for chat attachments so files are not
-    kept permanently under ``uploads/``.
+    Chat attachments use this path so files remain visible in Files across chats.
     """
     if len(data) > MAX_UPLOAD_BYTES:
         mb = MAX_UPLOAD_BYTES / (1024 * 1024)
@@ -146,7 +145,11 @@ def save_session_upload(
     filename: str,
     data: bytes,
 ) -> dict[str, Any]:
-    """Save chat attachment under workspace/.session_uploads/ (ephemeral)."""
+    """Save under workspace/.session_uploads/ (legacy ephemeral path).
+
+    Chat attachments use :func:`save_upload` instead. Kept for tests and
+    clearing leftover files on new chat.
+    """
     if len(data) > MAX_UPLOAD_BYTES:
         mb = MAX_UPLOAD_BYTES / (1024 * 1024)
         raise ValueError(f"File too large (max {mb:.0f} MB)")
@@ -402,8 +405,8 @@ def format_upload_context(paths: list[str]) -> str:
     if not paths:
         return ""
     lines = [
-        "[Session spreadsheet attachments — workspace-relative paths]",
-        "These files are temporary for this chat (not kept in uploads/).",
+        "[Spreadsheet attachments — workspace-relative paths under uploads/]",
+        "These files are kept in uploads/ (visible in Files) across chats.",
         "Prefer inspect_spreadsheet for workbook structure (sheets, columns, metadata).",
         "Prefer read_spreadsheet for a bounded row/column slice.",
         "Use analyze_excel only for natural-language summary, comparison, or aggregation.",
@@ -427,7 +430,7 @@ def make_spreadsheet_tools(workspace: Path):
         """Inspect workbook structure: sheet names, columns, and bounded metadata.
 
         Args:
-            path: Workspace-relative path (e.g. .session_uploads/sales.xlsx).
+            path: Workspace-relative path (e.g. uploads/sales.xlsx).
         """
         try:
             data = inspect_spreadsheet_data(workspace, path)
@@ -446,7 +449,7 @@ def make_spreadsheet_tools(workspace: Path):
         """Read a bounded row/column slice from an Excel/CSV file under the workspace.
 
         Args:
-            path: Workspace-relative path (e.g. .session_uploads/sales.xlsx).
+            path: Workspace-relative path (e.g. uploads/sales.xlsx).
             sheet: Sheet name for Excel (ignored for CSV). Defaults to first sheet.
             columns: Optional list of column names to include.
             start_row: 0-based start row.

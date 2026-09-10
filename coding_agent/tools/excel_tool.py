@@ -51,7 +51,7 @@ aggregation, quality checks, or a result workbook/chart from Excel Analyzer. \
 It is not a general code-generation or code-editing tool.
 
 Files may already be in the workspace, including chat attachments under \
-.session_uploads/. Pass workspace-relative paths or absolute paths inside that \
+uploads/. Pass workspace-relative paths or absolute paths inside that \
 workspace. This tool does not upload files.
 
 analysis_mode:

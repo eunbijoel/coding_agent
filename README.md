@@ -85,6 +85,7 @@ streamlit run app.py
 ## Excel Analyzer 연동 (custom tool)
 
 채팅 입력에서 Excel/CSV를 첨부하거나, workspace에 이미 있는 파일을 사용할 수 있습니다.
+첨부 파일은 `workspace/uploads/`에 저장되며 Files에 보이고, New chat 후에도 남습니다.
 
 역할 구분:
 

@@ -11,7 +11,7 @@ Structure inspection uses `inspect_spreadsheet` / `read_spreadsheet` first.
 
 ```
 Coding Agent Streamlit UI
-  → chat upload (.session_uploads) and/or existing workspace files
+  → chat upload (uploads/) and/or existing workspace files
   → DeepAgentsBridge
     → create_cli_agent(
          tools=inspect_spreadsheet + read_spreadsheet
@@ -57,7 +57,7 @@ export CODING_AGENT_EXCEL_OUTPUT_ROOT=<project-root>/workspace/outputs/excel_age
 
 ## Tool usage
 
-Input files may come from chat attachments under `.session_uploads/` or from
+Input files may come from chat attachments under `uploads/` or from
 files already in the workspace.
 
 - `inspect_spreadsheet`: workbook structure, sheet names, columns, bounded metadata (**prefer first**)
@@ -76,7 +76,7 @@ files already in the workspace.
 - `single` requires one file; `multi` requires two or more.
 - Output directory is not a tool argument. Each call writes under
   `outputs/excel_agent/<request-id>/` (visible in Files; Download from the editor).
-- Original uploaded files stay in `.session_uploads/`.
+- Original uploaded files stay in `uploads/`.
 
 `transform_excel` notes:
 

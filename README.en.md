@@ -89,7 +89,7 @@ Roles:
 
 Coding Agent calls `excel_ai_analyzer` in a **separate Python venv subprocess**. Bad Analyzer config does not crash the app; Excel tools return `configuration_error`.
 
-Chat attachments are stored under `.session_uploads/` (ephemeral, not permanent `uploads/`). After attach/send, open the right-pane preview from the chat attachment buttons or tool **Open** actions.
+Chat attachments are stored under `uploads/` (visible in Files, kept across chats). After attach/send, open the right-pane preview from the chat attachment buttons, the Files tree, or tool **Open** actions.
 
 Minimum setup:
 

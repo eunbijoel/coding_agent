@@ -5,20 +5,20 @@ import sys
 from pathlib import Path
 
 from coding_agent.integrations.excel_paths import validate_tool_inputs
-from coding_agent.spreadsheet import save_session_upload
+from coding_agent.spreadsheet import save_upload
 from coding_agent.tools.excel_tool import run_analyze_excel
 from tests.conftest import bind_excel_env, install_fake_excel_root
 
 
-def test_session_upload_path_is_valid_analyze_excel_input(
+def test_upload_path_is_valid_analyze_excel_input(
     monkeypatch, tmp_path: Path
 ) -> None:
     workspace = tmp_path / "ws"
     workspace.mkdir()
     csv_bytes = b"item,value\nA,1\nB,2\n"
-    result = save_session_upload(workspace, filename="sample.csv", data=csv_bytes)
+    result = save_upload(workspace, filename="sample.csv", data=csv_bytes)
     rel = result["path"]
-    assert rel.startswith(".session_uploads/")
+    assert rel.startswith("uploads/")
     uploaded = workspace / rel
     assert uploaded.is_file()
     assert uploaded.read_bytes() == csv_bytes
