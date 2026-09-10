@@ -102,12 +102,6 @@ export CODING_AGENT_EXCEL_OUTPUT_ROOT=<project-root>/workspace/outputs/excel_age
 
 - Use inspect/read for structure, `analyze_excel` for summary/aggregation, `transform_excel` for sheet extract / unmerge.
 
-See [Excel integration](docs/excel_integration.md) for configuration and security boundaries.
-
-## Runtime environment and test examples
-
-For detailed run instructions, hardware notes, prompts, and measured results, see [EXECUTION_GUIDE.md](EXECUTION_GUIDE.md).
-
 ### Limitations
 
 - **Terminal** is not a PTY. Interactive `input()` is not supported.

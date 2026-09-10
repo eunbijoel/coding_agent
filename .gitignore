@@ -7,3 +7,8 @@ workspace/**
 data/
 .pytest_cache/
 .deepagents/
+
+# Local-only (not part of the runtime repo)
+tests/
+docs/
+EXECUTION_GUIDE.md

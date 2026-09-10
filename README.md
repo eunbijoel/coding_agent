@@ -109,13 +109,6 @@ export CODING_AGENT_EXCEL_OUTPUT_ROOT=<project-root>/workspace/outputs/excel_age
 
 - 구조 확인은 inspect/read, 요약·집계는 analyze_excel, 시트 추출·병합 해제는 transform_excel을 사용합니다.
 
-자세한 설정·보안 경계는 [Excel integration](docs/excel_integration.md)을 참고하세요.
-
-## 실행 환경 및 테스트 예시
-
-상세 실행 방법, 시스템 규격, 테스트 프롬프트와 측정 결과는
-[실행·검증 가이드](EXECUTION_GUIDE.md)를 참고하세요.
-
 ### Limitations:
 
 - **Terminal**은 PTY가 아닙니다. `input()` 같은 대화형 입력은 지원하지 않습니다.
