@@ -12,10 +12,3 @@ dependencies = [
   "openpyxl>=3.1",
   "xlrd>=2.0",
 ]
-
-[project.optional-dependencies]
-dev = ["pytest>=8.0"]
-
-[tool.pytest.ini_options]
-pythonpath = ["."]
-testpaths = ["tests"]

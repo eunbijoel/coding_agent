@@ -10,7 +10,7 @@ from typing import Any
 from langchain_core.tools import tool
 
 UPLOAD_DIR = "uploads"
-# Chat attachments only — wiped on new chat; not long-term storage.
+# Legacy chat-upload dir; wiped on new chat if leftovers remain.
 SESSION_UPLOAD_DIR = ".session_uploads"
 OUTPUT_DIR = "outputs"
 ALLOWED_SUFFIXES = {".xlsx", ".xls", ".csv"}
@@ -30,14 +30,8 @@ def ensure_upload_dirs(workspace: Path) -> tuple[Path, Path]:
     return uploads, outputs
 
 
-def ensure_session_upload_dir(workspace: Path) -> Path:
-    path = workspace / SESSION_UPLOAD_DIR
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
 def clear_session_uploads(workspace: Path) -> None:
-    """Remove ephemeral chat upload files (frees disk; not used as permanent storage)."""
+    """Remove leftover files under ``.session_uploads/`` (legacy ephemeral path)."""
     path = workspace / SESSION_UPLOAD_DIR
     if not path.is_dir():
         return
@@ -136,35 +130,6 @@ def save_upload(
         "name": dest.name,
         "bytes": len(data),
         "overwritten": overwrite and (uploads / safe_name) == dest,
-    }
-
-
-def save_session_upload(
-    workspace: Path,
-    *,
-    filename: str,
-    data: bytes,
-) -> dict[str, Any]:
-    """Save under workspace/.session_uploads/ (legacy ephemeral path).
-
-    Chat attachments use :func:`save_upload` instead. Kept for tests and
-    clearing leftover files on new chat.
-    """
-    if len(data) > MAX_UPLOAD_BYTES:
-        mb = MAX_UPLOAD_BYTES / (1024 * 1024)
-        raise ValueError(f"File too large (max {mb:.0f} MB)")
-    safe_name = sanitize_filename(filename)
-    session_dir = ensure_session_upload_dir(workspace)
-    dest = unique_dest(session_dir, safe_name)
-    dest.write_bytes(data)
-    rel = str(dest.relative_to(workspace.resolve()))
-    return {
-        "ok": True,
-        "path": rel,
-        "name": dest.name,
-        "bytes": len(data),
-        "overwritten": False,
-        "ephemeral": True,
     }
 
 
