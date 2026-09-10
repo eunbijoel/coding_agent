@@ -95,4 +95,7 @@ files already in the workspace.
 - Coding Agent validates paths, runs the process, enforces timeout, checks the
   JSON contract, and verifies artifact hashes/sizes/workspace containment.
 - Existing Coding Agent HITL (shell/write, Auto-approve) is unchanged.
-  Custom `analyze_excel` / `transform_excel` HITL is not present in deepagents-code 0.1.65.
+  When Auto-approve is off, `analyze_excel` / `transform_excel` are added to the
+  stock HITL interrupt map so the Streamlit Approve/Reject panel gates them
+  (deepagents-code has no public `interrupt_on` kwarg; Coding Agent patches the
+  interrupt map at agent creation).

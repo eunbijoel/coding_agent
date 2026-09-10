@@ -92,7 +92,8 @@ streamlit run app.py
 - **analyze_excel**: 자연어 요약·비교·집계 (전용 Analyzer venv subprocess)
 - **transform_excel**: 원본 보존 복사본에서 `extract_to_sheet` / `unmerge_cells` (전용 subprocess). 좌표는 Coding Agent가 만들지 않습니다.
 - 결과 파일은 `workspace/outputs/excel_agent/`에 저장되며 **Files Explorer에서 열고 Download**할 수 있습니다.
-- 기존 shell/write HITL·Auto-approve는 유지됩니다. Excel custom tool 전용 HITL은 없습니다.
+- 기존 shell/write HITL·Auto-approve는 유지됩니다. Auto-approve가 꺼져 있으면
+  `analyze_excel` / `transform_excel`도 **같은 Approve/Reject 패널**에서 승인합니다.
 
 Coding Agent는 `excel_ai_analyzer`를 **별도 Python 가상환경 subprocess**로 호출합니다. Analyzer 설정이 잘못되어도 앱은 기동하며, Excel tool만 `configuration_error`를 반환합니다.
 

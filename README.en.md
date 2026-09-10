@@ -84,7 +84,8 @@ Roles:
 - **analyze_excel**: natural-language summary, comparison, aggregation (Analyzer venv subprocess)
 - **transform_excel**: copy-preserving `extract_to_sheet` / `unmerge_cells` (subprocess). Coding Agent does not invent coordinates.
 - Results are written under `workspace/outputs/excel_agent/` and can be opened/**Download**ed in Files Explorer.
-- Existing shell/write HITL and Auto-approve are unchanged. There is no Excel-tool-specific HITL.
+- Existing shell/write HITL and Auto-approve are unchanged. With Auto-approve off,
+  `analyze_excel` / `transform_excel` also pause on the same Approve/Reject panel.
 
 Coding Agent calls `excel_ai_analyzer` in a **separate Python venv subprocess**. Bad Analyzer config does not crash the app; Excel tools return `configuration_error`.
 

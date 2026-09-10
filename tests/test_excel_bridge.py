@@ -31,8 +31,12 @@ def _assert_combined_tools(tools) -> None:
 
 def test_create_cli_agent_receives_combined_tools(monkeypatch, tmp_path: Path) -> None:
     captured: list[dict] = []
+    hitl_maps: list[dict] = []
 
     def fake_create_cli_agent(**kwargs):
+        import deepagents_code.agent as da
+
+        hitl_maps.append(da._add_interrupt_on())
         captured.append(kwargs)
         return MagicMock(name="agent"), MagicMock(name="backend")
 
@@ -50,6 +54,8 @@ def test_create_cli_agent_receives_combined_tools(monkeypatch, tmp_path: Path) -
     assert kwargs["checkpointer"] is bridge._checkpointer
     assert kwargs["interactive"] is False
     assert kwargs["enable_memory"] is False
+    assert hitl_maps and ANALYZE_EXCEL_NAME in hitl_maps[0]
+    assert TRANSFORM_EXCEL_NAME in hitl_maps[0]
 
 
 def test_existing_flags_preserved_and_reset_reregisters(monkeypatch, tmp_path: Path) -> None:

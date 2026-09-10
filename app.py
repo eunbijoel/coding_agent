@@ -561,14 +561,22 @@ def _store() -> ThreadStore:
 
 
 def _bridge_cache_token() -> str:
-    """Invalidate cached bridges when spreadsheet/bridge code changes."""
-    parts: list[str] = ["spreadsheet-v2"]
-    for name in ("bridge.py", "spreadsheet.py"):
-        path = ROOT / "coding_agent" / name
+    """Invalidate cached bridges when bridge / spreadsheet / Excel code changes."""
+    parts: list[str] = ["spreadsheet-v2", "excel-hitl-v1"]
+    watch = [
+        ROOT / "coding_agent" / "bridge.py",
+        ROOT / "coding_agent" / "spreadsheet.py",
+        ROOT / "coding_agent" / "tools" / "__init__.py",
+        ROOT / "coding_agent" / "tools" / "excel_tool.py",
+    ]
+    integ = ROOT / "coding_agent" / "integrations"
+    if integ.is_dir():
+        watch.extend(sorted(integ.glob("*.py")))
+    for path in watch:
         try:
-            parts.append(f"{name}:{path.stat().st_mtime_ns}")
+            parts.append(f"{path.relative_to(ROOT)}:{path.stat().st_mtime_ns}")
         except OSError:
-            parts.append(f"{name}:missing")
+            parts.append(f"{path.name}:missing")
     return "|".join(parts)
 
 
