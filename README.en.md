@@ -22,24 +22,31 @@ flowchart TB
         Snap["workspace snapshot / diff"]
         Verify["py_compile + pytest"]
         Map["LangGraph stream → UI events"]
+        HITL["HITL map<br/>shell · write · Excel tools"]
     end
 
     subgraph DCode["③ deepagents-code · create_cli_agent()"]
         Graph["LangGraph Pregel"]
         MW["Middleware stack<br/>HITL · filesystem · shell …"]
         CP["SqliteSaver checkpointer"]
+        Tools["Tools<br/>read/write/edit/execute<br/>+ spreadsheet · Excel"]
     end
 
-    subgraph Runtime["④ deepagents + LangChain"]
+    subgraph Runtime["④ Runtime"]
         Model["Ollama gemma4:31b"]
-        Hands["read/write/edit/execute …"]
-        WS["workspace/"]
+        WS["workspace/<br/>uploads/ · outputs/excel_agent/"]
+    end
+
+    subgraph Excel["⑤ Excel Analyzer · subprocess"]
+        Venv["excel_ai_analyzer venv<br/>analyze_excel / transform_excel"]
     end
 
     UI --> Bridge
     Bridge --> DCode
     DCode --> Runtime
-    Hands --> WS
+    Tools --> WS
+    Tools --> Excel
+    Excel --> WS
     ThreadStore --> ThreadsIdx["data/threads.json"]
     ThreadStore --> MsgData["data/messages/*.json"]
     CP --> Data["data/checkpoints.sqlite"]
