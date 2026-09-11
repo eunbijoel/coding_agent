@@ -25,8 +25,8 @@ MIN_EXCEL_TIMEOUT_SECONDS = 1.0
 MAX_EXCEL_TIMEOUT_SECONDS = 86_400.0
 # Visible under Files explorer (dot-dirs are hidden). Unique request subdirs refuse overwrite.
 DEFAULT_EXCEL_OUTPUT_DIRNAME = "outputs/excel_agent"
-# Matches excel_ai_analyzer production defaults without importing that package.
-DEFAULT_EXCEL_MODEL = "qwen2.5:7b"
+# Same default Ollama tag as the coding agent unless CODING_AGENT_EXCEL_MODEL is set.
+DEFAULT_EXCEL_MODEL = MODEL_NAME
 DEFAULT_EXCEL_OLLAMA = "http://localhost:11434"
 EXCEL_CLI_MODULE_RELATIVE = Path("core") / "application" / "cli.py"
 
