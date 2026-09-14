@@ -3,8 +3,7 @@
 
 Streamlit기반 코딩 워크벤치 | **에이전트 엔진: [deepagents-code](https://pypi.org/project/deepagents-code/)** | 모델: Ollama `gemma4:31b`
 
-
-<img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/2b4d1f6c-71f1-47a8-b9a7-054409ffacc3" />
+<img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/6010e194-a4fe-462b-bfa9-c5ed26b05a3d" />
 
 
 ## 실행
