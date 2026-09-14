@@ -1,59 +1,10 @@
 # Coding Agent
-
-Streamlit기반 코딩 워크벤치. **에이전트 엔진은 [deepagents-code](https://pypi.org/project/deepagents-code/)** 
-
-모델: Ollama `gemma4:31b`
-
 > English README: [README.en.md](README.en.md)
 
-## 구조
-
-```mermaid
-flowchart TB
-    subgraph UI["① Streamlit UI · app.py"]
-        Chat["채팅 / 승인 UI"]
-        Editor["코드 패널"]
-        Sidebar["Thread · Files · Settings"]
-        ThreadStore["ThreadStore"]
-    end
-
-    subgraph Bridge["② DeepAgentsBridge · bridge.py"]
-        Events["AgentEvent 정규화"]
-        Snap["workspace 스냅샷 / diff"]
-        Verify["py_compile + pytest"]
-        Map["LangGraph stream → UI 이벤트"]
-        HITL["HITL 맵<br/>shell · write · Excel tools"]
-    end
-
-    subgraph DCode["③ deepagents-code · create_cli_agent()"]
-        Graph["LangGraph Pregel"]
-        MW["Middleware 스택<br/>HITL · filesystem · shell …"]
-        CP["SqliteSaver checkpointer"]
-        Tools["Tools<br/>read/write/edit/execute<br/>+ spreadsheet · Excel"]
-    end
-
-    subgraph Runtime["④ Runtime"]
-        Model["Ollama gemma4:31b"]
-        WS["workspace/<br/>uploads/ · outputs/excel_agent/"]
-    end
-
-    subgraph Excel["⑤ Excel Analyzer · subprocess"]
-        Venv["excel_ai_analyzer venv<br/>analyze_excel / transform_excel"]
-    end
-
-    UI --> Bridge
-    Bridge --> DCode
-    DCode --> Runtime
-    Tools --> WS
-    Tools --> Excel
-    Excel --> WS
-    ThreadStore --> ThreadsIdx["data/threads.json"]
-    ThreadStore --> MsgData["data/messages/*.json"]
-    CP --> Data["data/checkpoints.sqlite"]
-```
+Streamlit기반 코딩 워크벤치 | **에이전트 엔진: [deepagents-code](https://pypi.org/project/deepagents-code/)** | 모델: Ollama `gemma4:31b`
 
 
-
+<img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/2b4d1f6c-71f1-47a8-b9a7-054409ffacc3" />
 
 
 ## 실행
