@@ -11,4 +11,3 @@ data/
 # Local-only (not part of the runtime repo)
 tests/
 docs/
-EXECUTION_GUIDE.md
