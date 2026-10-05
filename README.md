@@ -71,6 +71,9 @@ export CODING_AGENT_EXCEL_OUTPUT_ROOT=<project-root>/workspace/outputs/excel_age
 상세 실행 방법, 시스템 규격, 테스트 프롬프트와 측정 결과는
 [실행·검증 가이드](EXECUTION_GUIDE.md)를 참고하세요.
 
+<img width="1280" height="595" alt="photo_2026-10-05 22 20 12" src="https://github.com/user-attachments/assets/cf31fe3b-2609-491d-aa15-a8a99f6695a5" />
+
+
 ### Limitations:
 
 - **Terminal**은 PTY가 아닙니다. `input()` 같은 대화형 입력은 지원하지 않습니다.
