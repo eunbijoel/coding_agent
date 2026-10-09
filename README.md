@@ -1,59 +1,9 @@
 # Coding Agent
-
-Streamlit기반 코딩 워크벤치. **에이전트 엔진은 [deepagents-code](https://pypi.org/project/deepagents-code/)** 
-
-모델: Ollama `gemma4:31b`
-
 > English README: [README.en.md](README.en.md)
 
-## 구조
+Streamlit기반 코딩 워크벤치 | **에이전트 엔진: [deepagents-code](https://pypi.org/project/deepagents-code/)** | 모델: Ollama `gemma4:31b`
 
-```mermaid
-flowchart TB
-    subgraph UI["① Streamlit UI · app.py"]
-        Chat["채팅 / 승인 UI"]
-        Editor["코드 패널"]
-        Sidebar["Thread · Files · Settings"]
-        ThreadStore["ThreadStore"]
-    end
-
-    subgraph Bridge["② DeepAgentsBridge · bridge.py"]
-        Events["AgentEvent 정규화"]
-        Snap["workspace 스냅샷 / diff"]
-        Verify["py_compile + pytest"]
-        Map["LangGraph stream → UI 이벤트"]
-        HITL["HITL 맵<br/>shell · write · Excel tools"]
-    end
-
-    subgraph DCode["③ deepagents-code · create_cli_agent()"]
-        Graph["LangGraph Pregel"]
-        MW["Middleware 스택<br/>HITL · filesystem · shell …"]
-        CP["SqliteSaver checkpointer"]
-        Tools["Tools<br/>read/write/edit/execute<br/>+ spreadsheet · Excel"]
-    end
-
-    subgraph Runtime["④ Runtime"]
-        Model["Ollama gemma4:31b"]
-        WS["workspace/<br/>uploads/ · outputs/excel_agent/"]
-    end
-
-    subgraph Excel["⑤ Excel Analyzer · subprocess"]
-        Venv["excel_ai_analyzer venv<br/>analyze_excel / transform_excel"]
-    end
-
-    UI --> Bridge
-    Bridge --> DCode
-    DCode --> Runtime
-    Tools --> WS
-    Tools --> Excel
-    Excel --> WS
-    ThreadStore --> ThreadsIdx["data/threads.json"]
-    ThreadStore --> MsgData["data/messages/*.json"]
-    CP --> Data["data/checkpoints.sqlite"]
-```
-
-
-
+<img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/6010e194-a4fe-462b-bfa9-c5ed26b05a3d" />
 
 
 ## 실행
@@ -120,6 +70,9 @@ export CODING_AGENT_EXCEL_OUTPUT_ROOT=<project-root>/workspace/outputs/excel_age
 
 상세 실행 방법, 시스템 규격, 테스트 프롬프트와 측정 결과는
 [실행·검증 가이드](EXECUTION_GUIDE.md)를 참고하세요.
+
+<img width="1280" height="595" alt="photo_2026-10-05 22 20 12" src="https://github.com/user-attachments/assets/cf31fe3b-2609-491d-aa15-a8a99f6695a5" />
+
 
 ### Limitations:
 
