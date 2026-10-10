@@ -10,7 +10,8 @@ Streamlit기반 코딩 워크벤치 | **에이전트 엔진: [deepagents-code](h
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh   # 없으면
-cd ~/coding-agent
+git clone https://github.com/eunbijoel/coding_agent.git
+cd coding_agent
 chmod +x run_app.sh
 ./run_app.sh
 ```
