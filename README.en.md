@@ -56,7 +56,8 @@ flowchart TB
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh   # if needed
-cd ~/coding-agent
+git clone https://github.com/eunbijoel/coding_agent.git
+cd coding_agent
 chmod +x run_app.sh
 ./run_app.sh
 ```
@@ -90,7 +91,7 @@ Roles:
 - **inspect_spreadsheet / read_spreadsheet**: sheet/column/structure checks (**prefer first**; in-process)
 - **analyze_excel**: natural-language summary, comparison, aggregation (Analyzer venv subprocess)
 - **transform_excel**: copy-preserving `extract_to_sheet` / `unmerge_cells` (subprocess). Coding Agent does not invent coordinates.
-- Results are written under `workspace/outputs/excel_agent/` and can be opened/**Download**ed in Files Explorer.
+- Results are written under `workspace/outputs/excel_agent/` and can be opened or downloaded from Files Explorer.
 - Existing shell/write HITL and Auto-approve are unchanged. With Auto-approve off,
   `analyze_excel` / `transform_excel` also pause on the same Approve/Reject panel.
 
