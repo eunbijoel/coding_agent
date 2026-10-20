@@ -1,7 +1,7 @@
 # Coding Agent
 > English README: [README.en.md](README.en.md)
 
-Streamlit기반 코딩 워크벤치 | **에이전트 엔진: [deepagents-code](https://pypi.org/project/deepagents-code/)** | 모델: Ollama `gemma4:31b`
+Streamlit 기반 코딩 워크벤치 | **에이전트 엔진: [deepagents-code](https://pypi.org/project/deepagents-code/)** | 모델: Ollama `gemma4:31b`
 
 <img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/6010e194-a4fe-462b-bfa9-c5ed26b05a3d" />
 
