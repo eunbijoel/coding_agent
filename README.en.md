@@ -17,7 +17,7 @@ flowchart TB
         ThreadStore["ThreadStore"]
     end
 
-    subgraph Bridge["② DeepAgentsBridge · bridge.py"]
+    subgraph Bridge["② DeepAgentsBridge · coding_agent/bridge.py"]
         Events["AgentEvent normalization"]
         Snap["workspace snapshot / diff"]
         Verify["py_compile + pytest"]
