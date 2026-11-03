@@ -107,21 +107,18 @@ def save_upload(
     *,
     filename: str,
     data: bytes,
-    overwrite: bool = False,
 ) -> dict[str, Any]:
     """Save upload bytes under workspace/uploads/. Returns relative path info.
 
     Chat attachments use this path so files remain visible in Files across chats.
+    Duplicate names get a numeric suffix (``name_1.xlsx``).
     """
     if len(data) > MAX_UPLOAD_BYTES:
         mb = MAX_UPLOAD_BYTES / (1024 * 1024)
         raise ValueError(f"File too large (max {mb:.0f} MB)")
     safe_name = sanitize_filename(filename)
     uploads, _ = ensure_upload_dirs(workspace)
-    if overwrite:
-        dest = uploads / safe_name
-    else:
-        dest = unique_dest(uploads, safe_name)
+    dest = unique_dest(uploads, safe_name)
     dest.write_bytes(data)
     rel = str(dest.relative_to(workspace.resolve()))
     return {
@@ -129,7 +126,6 @@ def save_upload(
         "path": rel,
         "name": dest.name,
         "bytes": len(data),
-        "overwritten": overwrite and (uploads / safe_name) == dest,
     }
 
 
@@ -144,12 +140,12 @@ def _import_pandas():
     return pd
 
 
-def _read_csv_dataframe(path: Path, *, nrows: int | None = None):
+def _read_csv_dataframe(path: Path):
     pd = _import_pandas()
     last_err: Exception | None = None
     for enc in CSV_ENCODINGS:
         try:
-            return pd.read_csv(path, encoding=enc, nrows=nrows)
+            return pd.read_csv(path, encoding=enc)
         except UnicodeDecodeError as exc:
             last_err = exc
             continue
