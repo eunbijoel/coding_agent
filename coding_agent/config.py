@@ -51,7 +51,6 @@ IGNORE_DIR_NAMES = {
     ".ruff_cache",
     ".deepagents",
     ".streamlit",
-    ".session_uploads",
     "data",
 }
 IGNORE_SUFFIXES = {".pyc", ".pyo", ".pyd", ".so", ".dll", ".egg"}
