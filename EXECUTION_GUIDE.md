@@ -36,8 +36,8 @@
 
 | 구분              | 실제 측정값                      |
 | --------------- | --------------------------- |
-| GPU             | NVIDIA GeForce RTX 5090 x 2 |
-| GPU 메모리         | GPU당 약 32GB                 |
+| GPU             | NVIDIA GeForce RTX 5090 × 2 |
+| GPU 메모리         | GPU당 32 GB GDDR7             |
 | CPU             | Intel(R) Core(TM) i7-14700K |
 | System RAM      | 31 GB total                 |
 | OS              | Linux 6.8.0-124-generic     |
