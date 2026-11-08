@@ -9,14 +9,16 @@ Streamlit coding workbench | **Agent engine: [deepagents-code](https://pypi.org/
 ## Run
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh   # if needed
+# Install uv if needed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
 git clone https://github.com/eunbijoel/coding_agent.git
 cd coding_agent
 chmod +x run_app.sh
 ./run_app.sh
 ```
 
-OR:
+Or manually:
 
 ```bash
 uv venv .venv --python 3.12
