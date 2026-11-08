@@ -9,14 +9,16 @@ Streamlit 기반 코딩 워크벤치 | **에이전트 엔진: [deepagents-code](
 ## 실행
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh   # 없으면
+# uv가 없으면 설치
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
 git clone https://github.com/eunbijoel/coding_agent.git
 cd coding_agent
 chmod +x run_app.sh
 ./run_app.sh
 ```
 
-OR:
+또는 수동으로:
 
 ```bash
 uv venv .venv --python 3.12
