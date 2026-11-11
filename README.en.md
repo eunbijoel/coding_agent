@@ -31,7 +31,7 @@ streamlit run app.py
 
 ### Workbench
 
-Select a file in the sidebar Files explorer to open it on the right.
+Select a file in the sidebar Files Explorer to open it on the right.
 
 
 | Area | Description |
@@ -52,7 +52,7 @@ Roles:
 - **inspect_spreadsheet / read_spreadsheet**: sheet/column/partial-row structure checks (**prefer first**; Coding Agent process)
 - **analyze_excel**: natural-language summary, comparison, aggregation (dedicated Analyzer venv subprocess)
 - **transform_excel**: copy-preserving `extract_to_sheet` / `unmerge_cells` (dedicated subprocess). Coding Agent does not invent coordinates.
-- Results are written under `workspace/outputs/excel_agent/` and can be **opened / Download**ed in Files Explorer.
+- Results are written under `workspace/outputs/excel_agent/` and can be opened / downloaded in Files Explorer.
 - Existing shell/write HITL and Auto-approve are unchanged. With Auto-approve off,
   `analyze_excel` / `transform_excel` also pause on the **same Approve/Reject panel**.
 
